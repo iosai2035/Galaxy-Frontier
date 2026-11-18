@@ -23,6 +23,8 @@ class UGFHUDController;
 class UGFInventoryComponent;
 class UGFEquipmentComponent;
 class UGFProgressionComponent;
+class UGFServerValidation;
+class UGFReplicationManager;
 struct FInputActionValue;
 
 // Two base bodies (male / female, Phase 05 customisation) share
@@ -171,6 +173,16 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Progression")
 	TObjectPtr<UGFProgressionComponent> ProgressionComponent;
 
+	// Phase 06: network. Created in the constructor. In
+	// single-player they exist but never block anything (the
+	// validation component passes every check in Standalone,
+	// and the replication manager is only read by server code).
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Network")
+	TObjectPtr<UGFServerValidation> ServerValidation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Network")
+	TObjectPtr<UGFReplicationManager> ReplicationManager;
+
 	// --- Realistic-character hooks (Docs/CHARACTERS.md) ---
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Character")
 	FGFCharacterCustomization Customization;
@@ -208,6 +220,20 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "GF|Progression")
 	UGFProgressionComponent* GetProgressionComponent() const { return ProgressionComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "GF|Network")
+	UGFServerValidation* GetServerValidation() const { return ServerValidation; }
+
+	UFUNCTION(BlueprintPure, Category = "GF|Network")
+	UGFReplicationManager* GetReplicationManager() const { return ReplicationManager; }
+
+	// Phase 06: true when this game is networked (a client or a
+	// server in a session). False in single-player (Standalone).
+	// Input handlers use it to route requests through the
+	// PlayerController's Server RPCs instead of executing them
+	// locally — the server is authoritative in a session.
+	UFUNCTION(BlueprintPure, Category = "GF|Network")
+	bool IsNetworkedGame() const;
 
 	// Phase 04: touch-button state setters. The HUD buttons call
 	// these (the keyboard handlers set the same flags directly).

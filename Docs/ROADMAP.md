@@ -1,7 +1,8 @@
 # Roadmap — Galaxy Frontier
 
-Single player first. Multiplayer and Battle Royale only after the
-network base is built and tested (Phase 06).
+Single player first. Multiplayer and Battle Royale are Phase 06
+(the network base is written and reviewed; the two-player test
+that proves it has NOT run yet — see Phase 06 below).
 
 ## Phase 00 — Foundation ✅ CREATED / REVIEWED (2026-11-18)
 
@@ -126,6 +127,59 @@ network base is built and tested (Phase 06).
 - Exit criteria NOT yet proven: inventory / save / vehicles
   need an Editor run on macOS (BUILT: NONE, TESTED: NONE).
 
-- Dedicated server, lobby, sessions, matchmaking, replication,
-  server-authoritative validation, anti-cheat design. Two-player test
-  first, then scale. Battle Royale only after this base passes.
+## Phase 06 — Multiplayer / Battle Royale ✅ CREATED / REVIEWED (2026-11-18)
+
+- `AGFGameMode` (Lobby → Countdown → Playing → Ended, 30 s / 5 s,
+  MinPlayers 2, MaxPlayers 60 design target), `AGFGameState`
+  (replicated match state + zone), `AGFPlayerState` (replicated
+  level / eliminations / alive / placement),
+  `AGFPlayerController` (Server RPCs: fire / stop / interact /
+  damage / set level; `ClientShowMatchResult`),
+  `UGFServerValidation` (fire rate, movement, damage, projectile
+  hits, interact — server-authoritative, single-player unaffected),
+  `UGFReplicationManager` (priority + update interval by distance,
+  idle suppression, heartbeat timeout), `UGFAntiCheatManager`
+  (violation ledger: warn / kick at 3 / session ban at 5),
+  `UGFSessionManager` (Online Subsystem NULL first, level ±3
+  matchmaking, 60 s search timeout, never invents players),
+  `UGFZoneManager` (8 shrinking phases, 6000 → 0 cm, DPS 0 → 25),
+  `UGFMatchManager` (spawn distribution, placements, XP by
+  placement: 1st 500 / 2–5 300 / 6–10 200 / 11–20 100 / 21+ 50),
+  `GalaxyFrontierServer.Target.cs` (dedicated server target).
+- `AGFCharacter::HandleFireStarted/Completed` and
+  `HandleInteract` route through Server RPCs only in networked
+  games; `AGFProjectile::OnHit` applies damage on the server
+  only, via `ApplyValidatedDamage`.
+- UMG specs: `WBP_Lobby`, `WBP_Matchmaking`,
+  `WBP_MultiplayerHUD` (full specs, `Docs/UI-SCREENS.md`);
+  `WBP_Spectate` is spec-only, NOT IMPLEMENTED.
+- Output: `GalaxyFrontier-Phase-06-Multiplayer-Battle-Royale.zip`
+- Exit criteria NOT yet proven: the two-player test (dedicated
+  server + two clients, one match end-to-end) has never run.
+  Battle Royale at 60 players is a design target, not a tested
+  number (BUILT: NONE, TESTED: NONE — BLOCKED).
+
+## Full project status — all phases (2026-11-18)
+
+| Phase | Status | Output |
+|---|---|---|
+| 00 Foundation | ✅ CREATED / REVIEWED | Project, Config, Docs |
+| 01 Character | ✅ CREATED / REVIEWED | `AGFCharacter`, input, movement |
+| 02 Combat & AI | ✅ CREATED / REVIEWED | Health, combat, weapons, enemy AI |
+| 03 World & Missions | ✅ CREATED / REVIEWED | ZERON, "The Lost Power Core" |
+| 04 Mobile UI & Optimization | ✅ CREATED / REVIEWED | UMG specs, settings, performance |
+| 05 Expansion | ✅ CREATED / REVIEWED | Inventory, vehicles, planets, save |
+| 06 Multiplayer / Battle Royale | ✅ CREATED / REVIEWED | Network base, sessions, zone, BR |
+
+- **BUILT: NONE. TESTED: NONE.** No phase has ever been
+  compiled or run — there is no UE, no Xcode and no macOS on
+  this Linux VM. Every phase is CREATED + REVIEWED only.
+- **IPA: BLOCKED.** The workflow
+  (`.github/workflows/build-ios-ipa.yml`, on GitHub at commit
+  `c62d890d`) needs a self-hosted Mac with UE 5.5 pre-installed
+  (a standard GitHub runner cannot hold the engine).
+- **Next step after the code:** open the project in the Unreal
+  Editor on macOS, build the UMG widgets / levels / Data Assets
+  from the Docs specs, run the two-player multiplayer test,
+  then device testing on a real iPhone/iPad, then the IPA build
+  for SideStore.

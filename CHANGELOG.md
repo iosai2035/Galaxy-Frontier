@@ -3,6 +3,125 @@
 All notable changes, per phase. Statuses: CREATED / REVIEWED / BUILT /
 TESTED / BLOCKED / NOT IMPLEMENTED (see Docs/QUALITY.md).
 
+## [Phase 06 — Multiplayer / Battle Royale] — 2026-11-18
+
+### Added
+- `Source/GalaxyFrontier/Multiplayer/AGFGameMode.h/.cpp` —
+  server-authoritative GameMode: match flow Lobby (30 s) →
+  Countdown (5 s) → Playing → Ended, MinPlayers 2,
+  MaxPlayers 60 (design target, not tested), `NotifyElimination`
+  (victim dead, killer credit, placement, match end at one
+  player left), `ChoosePlayerStart` delegated to
+  `UGFMatchManager`, disconnect mid-match counts as an
+  elimination. `GalaxyFrontierServer.Target.cs` is the
+  dedicated-server target (see `Docs/DEDICATED-SERVER.md`).
+- `Source/GalaxyFrontier/Multiplayer/AGFGameState.h/.cpp` —
+  replicated match state (`MatchState`, `MatchTimerRemaining`,
+  `AlivePlayerCount`, `TotalPlayerCount`, `ZoneCenter`,
+  `ZoneRadius`); server-only setters refuse on clients.
+- `Source/GalaxyFrontier/Multiplayer/AGFPlayerState.h/.cpp` —
+  replicated per-player state (`PlayerLevel` 1..20, clamped on
+  the server; `Eliminations`; `bIsAlive`; `Placement`, 0 = not
+  placed).
+- `Source/GalaxyFrontier/Multiplayer/AGFPlayerController.h/.cpp`
+  — Server RPCs (`ServerRequestStartFire/StopFire/Interact/
+  Damage`, `ServerSetPlayerLevel`) validated via
+  `UGFServerValidation` in `_Implementation`; `_Validate` stays
+  permissive (null checks only — returning false there would
+  disconnect the client). `ClientShowMatchResult` for the final
+  result. The saved level is sent once at login (client only).
+- `Source/GalaxyFrontier/Multiplayer/UGFServerValidation.h/.cpp`
+  — ActorComponent on `AGFCharacter`: fire-rate check (weapon
+  `FireRate`, 15% + 50 ms slack), movement check (SprintSpeed
+  700 cm/s + 10%, +500 cm slack; gross jumps = teleport),
+  damage check (exact weapon `Damage`, range, alive, Playing
+  match), projectile-hit check (damage ≤ 85, range from shot
+  origin), interact check (250 cm + `CanInteract`). All pass
+  trivially in single-player (Standalone). Failed checks
+  report violations to `UGFAntiCheatManager`.
+- `Source/GalaxyFrontier/Multiplayer/UGFReplicationManager.h/.cpp`
+  — replication policy: priority 1.0 / 0.6 / 0.3 by distance
+  (< 1500 / < 4000 / further), update interval 0.05 / 0.10 /
+  0.20 s, idle moves under 5 cm send nothing, heartbeat
+  timeout 30 s.
+- `Source/GalaxyFrontier/Multiplayer/UGFAntiCheatManager.h/.cpp`
+  — GameInstance subsystem, server only: violation ledger
+  keyed by UniqueId; 1–2 warn, 3 kick, 5 session ban
+  (in-memory only — no persistent ban list, no backend).
+- `Source/GalaxyFrontier/Multiplayer/UGFSessionManager.h/.cpp` —
+  GameInstance subsystem on the Online Subsystem (NULL first):
+  `CreateSession` (advertises `GF_Level` + `GF_Mode`),
+  `FindSessions` (level ±3 filter, 60 s timeout — never
+  invents players or bots), `JoinSession` (connect string from
+  the session, no hard-coded IP), `LeaveSession`.
+- `Source/GalaxyFrontier/Multiplayer/UGFZoneManager.h/.cpp` —
+  ActorComponent on `AGFGameMode`: 8 zone phases (6000 → 0 cm,
+  DPS 0 → 25), linear shrink, 1 s server damage tick outside
+  the radius (shield-first), zone deaths credit nobody.
+- `Source/GalaxyFrontier/Multiplayer/UGFMatchManager.h/.cpp` —
+  ActorComponent on `AGFGameMode`: round-robin spawn over
+  PlayerStarts (warning + GameMode fallback when none are
+  placed), placements (death places at the current alive
+  count), XP by placement (1st 500, 2–5 300, 6–10 200, 11–20
+  100, 21+ 50) via `UGFProgressionComponent::AddXP`, result
+  notification to all clients.
+- `Source/GalaxyFrontier/Tests/GFPhase06Test.cpp` — automation
+  test skeleton, spec values + failure cases (match flow,
+  validation, zone, sessions, anti-cheat, replication).
+  **NOT RUN** (no UE / server / second device here).
+- `Docs/MULTIPLAYER.md`, `Docs/BATTLE-ROYALE.md`,
+  `Docs/ANTI-CHEAT.md`, `Docs/DEDICATED-SERVER.md` —
+  network base, BR design (map `L_ZERON_BR_Prototype` spec
+  only), anti-cheat design + limits, server build/run + the
+  two-player test procedure. `Docs/UI-SCREENS.md` gains
+  `WBP_Lobby`, `WBP_Matchmaking`, `WBP_MultiplayerHUD`
+  (specs) and `WBP_Spectate` (spec only, NOT IMPLEMENTED).
+  `Docs/RELIABILITY.md` gains Phase 06 failure tables.
+- `Source/GalaxyFrontierServer.Target.cs` — dedicated server
+  target (`TargetType.Server`, same `GalaxyFrontier` module).
+
+### Changed
+- `Source/GalaxyFrontier/Characters/AGFCharacter.h/.cpp` —
+  `UGFServerValidation` + `UGFReplicationManager` components
+  (created in the constructor) + `IsNetworkedGame()`.
+  `HandleFireStarted/Completed` and `HandleInteract` route
+  through the controller's Server RPCs only in networked
+  games; single-player calls the Combat / Interaction
+  components directly, exactly as before.
+- `Source/GalaxyFrontier/Weapons/AGFProjectile.cpp` — `OnHit`
+  applies damage only on the server (`HasAuthority()`), via
+  `UGFServerValidation::ApplyValidatedDamage` when the shot
+  has a player instigator (elimination credit on kill); AI
+  projectiles (server-spawned, no validation component) apply
+  damage directly on the server as before.
+- `Source/GalaxyFrontier/GalaxyFrontier.Build.cs` — adds the
+  `OnlineSubsystem` module (Phase 06, `UGFSessionManager`).
+- `Config/DefaultGame.ini` — `MaxPlayers` 1 → 60 (Battle
+  Royale design target; single-player unaffected — Standalone
+  games never create a session).
+- `Config/DefaultEngine.ini` — `[OnlineSubsystem]
+  DefaultPlatformService=Null` (local testing first; EOS /
+  Steam are specs only).
+
+### Not implemented (declared only)
+- All UMG widgets as `.uasset` files (`WBP_Lobby`,
+  `WBP_Matchmaking`, `WBP_MultiplayerHUD`, `WBP_Spectate`) —
+  specs in `Docs/UI-SCREENS.md` only.
+- The BR level `L_ZERON_BR_Prototype` (`.umap`) and its
+  60 PlayerStarts — spec in `Docs/BATTLE-ROYALE.md` only.
+- EOS / Steam integration, voice/text chat, friends, parties,
+  teams/squads, spectating, reconnect/rejoin, ranked
+  matchmaking, networked AI / co-op missions, kill feed,
+  drop/parachute sequence, BR vehicles — see
+  `Docs/MULTIPLAYER.md` §8 and `Docs/BATTLE-ROYALE.md` §7.
+
+### Blocked
+- UE build / IPA / signing / device tests — same reason as
+  above. Plus: the two-player multiplayer test needs a
+  dedicated server + two clients (see
+  `Docs/DEDICATED-SERVER.md` §4); Battle Royale at 60 players
+  is a design target, not a tested number.
+
 ## [Phase 05 — Expansion] — 2026-11-18
 
 ### Added

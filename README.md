@@ -45,6 +45,21 @@ logos or assets copied from other games.
   `GF_PlayerSave`, version 1, migration from `GF_MissionSave`).
   `HandleOpenInventory` is a real implementation now — no
   Phase 01 stub remains.
+- **Phase 06 — Multiplayer / Battle Royale: CREATED / REVIEWED.**
+  `AGFGameMode` (Lobby → Countdown → Playing → Ended),
+  `AGFGameState` + `AGFPlayerState` (replicated match + player
+  state), `AGFPlayerController` (Server RPCs),
+  `UGFServerValidation` (fire rate / movement / damage /
+  interact — server-authoritative), `UGFReplicationManager`
+  (priority + rate by distance), `UGFAntiCheatManager` (warn /
+  kick at 3 / session ban at 5), `UGFSessionManager` (Online
+  Subsystem NULL, level ±3 matchmaking), `UGFZoneManager`
+  (8 shrinking phases, 6000 → 0 cm), `UGFMatchManager`
+  (placements, XP by placement), `GalaxyFrontierServer.Target.cs`
+  (dedicated server target). Fire / Interact route through
+  Server RPCs only in networked games; single-player is
+  unchanged. The two-player test has NOT run — multiplayer is
+  not claimed to work.
 - **BUILT: NONE. TESTED: NONE.** Unreal Engine is **not installed** on this
   Linux VM and there is no Xcode / macOS here, so no UE build, no IPA build,
   no signing and no device test has been run. See `Docs/ENVIRONMENT.md`.
@@ -95,6 +110,14 @@ GalaxyFrontier/
       UI/            UGFHUDController, UGFMobileHUDWidget (Phase 04)
       Settings/      UGFSettingsSaveGame, UGFSettingsManager (Phase 04)
       Performance/   UGFPerformanceManager (Phase 04)
+      Inventory/     UGFItemDataAsset, UGFInventoryComponent, UGFEquipmentComponent (Phase 05)
+      Customization/ UGFCharacterCustomizationData, UGFCustomizationManager (Phase 05)
+      Vehicles/      AGFGroundVehicle, AGFSpaceship (Phase 05)
+      Progression/   UGFProgressionComponent (Phase 05)
+      Save/          UGFSaveGame, UGFPlayerSaveManager (Phase 05)
+      Multiplayer/   AGFGameMode, AGFGameState, AGFPlayerState, AGFPlayerController,
+                     UGFServerValidation, UGFReplicationManager, UGFAntiCheatManager,
+                     UGFSessionManager, UGFZoneManager, UGFMatchManager (Phase 06)
       Tests/         Automation test skeletons (NOT RUN — no UE here)
   Content/           README only in Phases 00-04; no fake .uasset files
   Docs/              Roadmap, quality, device matrix, environment, reports
@@ -115,8 +138,23 @@ GalaxyFrontier/
   The widgets are Editor assets, not files in this repo; device
   testing (FPS/RAM/thermal) is still BLOCKED on a Mac + iPhone/iPad.
 - **05 Expansion** — customisation, inventory, vehicles, ships, planets.
-- **06 Multiplayer** — dedicated server, lobby, sessions, Battle Royale
-  (only after the network base is built and tested).
+  Done (CREATED / REVIEWED, not built/tested).
+- **06 Multiplayer / Battle Royale** — dedicated server, lobby,
+  sessions, matchmaking, replication, server-authoritative
+  validation, anti-cheat design, safe zone, placements, XP
+  rewards. Done (CREATED / REVIEWED, not built/tested). The
+  two-player test is the first exit criterion and has NOT run;
+  60 players is a design target, not a tested number.
+
+## Full project status
+
+All 7 phases (00–06) are **CREATED / REVIEWED**. None is BUILT
+or TESTED — there is no UE, no Xcode and no macOS on this Linux
+VM. The next step is opening the project in the Unreal Editor
+on macOS, building the UMG widgets / levels / Data Assets from
+the Docs specs, running the two-player multiplayer test, then
+device testing on a real iPhone/iPad, then the IPA build for
+SideStore (see `Docs/BUILD-IPA-SIDESTORE.md`).
 
 See `Docs/ROADMAP.md` for the full plan and `Docs/QUALITY.md` for the
 rules that apply to every file: no fake code, no invented test results,

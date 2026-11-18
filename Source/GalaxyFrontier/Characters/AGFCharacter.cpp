@@ -22,6 +22,9 @@
 #include "Inventory/UGFEquipmentComponent.h"
 #include "Inventory/UGFInventoryComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Multiplayer/AGFPlayerController.h"
+#include "Multiplayer/UGFReplicationManager.h"
+#include "Multiplayer/UGFServerValidation.h"
 #include "Progression/UGFProgressionComponent.h"
 #include "UI/UGFHUDController.h"
 #include "World/UGFInteractionComponent.h"
@@ -69,6 +72,11 @@ AGFCharacter::AGFCharacter()
 	InventoryComponent = CreateDefaultSubobject<UGFInventoryComponent>(TEXT("InventoryComponent"));
 	EquipmentComponent = CreateDefaultSubobject<UGFEquipmentComponent>(TEXT("EquipmentComponent"));
 	ProgressionComponent = CreateDefaultSubobject<UGFProgressionComponent>(TEXT("ProgressionComponent"));
+
+	// Phase 06: network. Created here so they are never null in
+	// game; every use site still null-checks them.
+	ServerValidation = CreateDefaultSubobject<UGFServerValidation>(TEXT("ServerValidation"));
+	ReplicationManager = CreateDefaultSubobject<UGFReplicationManager>(TEXT("ReplicationManager"));
 }
 
 void AGFCharacter::ApplyCustomization(const FGFCharacterCustomization& NewCustomization)
@@ -336,6 +344,16 @@ void AGFCharacter::UpdateMovementSpeed()
 // Fire / Reload / SwitchWeapon delegate to UGFCombatComponent.
 // Interact delegates to UGFInteractionComponent. A missing component
 // is logged and ignored — the character never crashes on input.
+// Phase 06: in a networked game, Fire / Interact go through the
+// PlayerController's Server RPCs instead (the server validates
+// and executes them); in single-player they run locally exactly
+// as before.
+
+bool AGFCharacter::IsNetworkedGame() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetNetMode() != NM_Standalone;
+}
 
 void AGFCharacter::HandleFireStarted()
 {
@@ -344,11 +362,31 @@ void AGFCharacter::HandleFireStarted()
 		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleFireStarted — no CombatComponent."));
 		return;
 	}
+	if (IsNetworkedGame())
+	{
+		if (AGFPlayerController* GFPC = Cast<AGFPlayerController>(GetController()))
+		{
+			GFPC->ServerRequestStartFire();
+			return;
+		}
+		// No GF controller (e.g. a bot / AI pawn using this
+		// character): fall through to the local path — the
+		// server still owns the pawn, so this is not a client
+		// bypass.
+	}
 	CombatComponent->StartFire();
 }
 
 void AGFCharacter::HandleFireCompleted()
 {
+	if (IsNetworkedGame())
+	{
+		if (AGFPlayerController* GFPC = Cast<AGFPlayerController>(GetController()))
+		{
+			GFPC->ServerRequestStopFire();
+			return;
+		}
+	}
 	if (CombatComponent)
 	{
 		CombatComponent->StopFire();
@@ -371,6 +409,14 @@ void AGFCharacter::HandleInteract()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleInteract — no InteractionComponent."));
 		return;
+	}
+	if (IsNetworkedGame())
+	{
+		if (AGFPlayerController* GFPC = Cast<AGFPlayerController>(GetController()))
+		{
+			GFPC->ServerRequestInteract();
+			return;
+		}
 	}
 	InteractionComponent->BeginInteraction();
 }

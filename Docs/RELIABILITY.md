@@ -199,6 +199,67 @@ claimed as tested here (no UE, no device on this Linux VM).
 - Draw-call / texture / polygon budgets are in
   `Docs/DEVICE_TEST_MATRIX.md` — they are targets, not measurements.
 
+### Network — GameMode / GameState / PlayerState (Phase 06)
+| Failure mode | Behaviour |
+|---|---|
+| Client calls a server-only setter (SetMatchState, SetAlive, AddElimination) | Warning logged, nothing changes — the server is authoritative |
+| Lobby ends with < 2 players | Lobby extends by 15 s and keeps waiting; a match never starts below MinPlayersToStart |
+| Player disconnects mid-match | Counts as an elimination (no killer credit); counts refreshed |
+| Player disconnects in the lobby | Removed from the counts only |
+| NotifyElimination called twice for the same victim | Second call is a no-op (victim already dead) |
+| EndMatch called twice | Second call is a no-op (state already Ended) |
+| No PlayerStarts in the level | Warning logged, GameMode falls back to its default spawn — no fake spawn point is invented |
+| MatchManager asked for XP with no pawn (disconnected player) | Placement kept, no XP awarded — the server never writes a client's save |
+
+### Sessions & matchmaking (UGFSessionManager) — Phase 06
+| Failure mode | Behaviour |
+|---|---|
+| No Online Subsystem | Create/Find/Join return false, warning logged, no session invented |
+| Search finds no session | Failure reported after the 60 s timeout — never invents players or bots |
+| Session does not advertise a level | Hidden from search results (unfiltered mixing is refused) |
+| Join with an out-of-range index | Returns false, warning logged |
+| Join succeeds but no connect string resolves | Reported as failure, `bIsInSession` reset to false |
+| Leave mid-match | Session destroyed; the server counts it as an elimination |
+
+### Server validation (UGFServerValidation) — Phase 06
+| Failure mode | Behaviour |
+|---|---|
+| Fire faster than the weapon rate | Request rejected, FireRate violation reported |
+| Fire with no weapon / no weapon data | Returns false, no shot |
+| Movement jump beyond speed × time + 500 cm | Rejected; gross jumps report Teleport, moderate over-speed reports SpeedHack |
+| Damage != weapon Damage (e.g. 999 from a Pistol) | Rejected, ImpossibleDamage violation reported, no health removed |
+| Damage to a dead target / self / out of range / in Lobby | Rejected, no damage |
+| Projectile hit on a client (`!HasAuthority()`) | Destroyed with no damage — only the server's projectile hits |
+| Interact beyond 250 cm or unusable target | Rejected, InvalidInteract violation reported |
+| Any check in single-player (Standalone) | Passes — local play is never blocked by validation |
+
+### Anti-cheat (UGFAntiCheatManager) — Phase 06
+| Failure mode | Behaviour |
+|---|---|
+| Violations 1-2 | Warn only, player stays in the match |
+| Violation 3 | Kick via `ClientReturnToMainMenu` with a reason |
+| Violation 5 | Session ban (in-memory only) + kick |
+| Report on a client / null PlayerState | Returns None, nothing changes |
+| Banned player reports again | Returns Ban without re-kicking |
+| Server restart | Ban record is empty again (session-local by design) |
+
+### Zone (UGFZoneManager) — Phase 06
+| Failure mode | Behaviour |
+|---|---|
+| Zone started on a client | Ignored (server only) |
+| Player outside the radius | DPS every second (shield-first rule); inside takes none |
+| Zone damage kills a player | No killer credit, placed at the current alive count |
+| Final phase (radius 0) | 25 DPS — nobody survives outside a zero-radius zone |
+| EndMatch while the zone runs | `StopZone()` clears the damage timer immediately |
+| No phases configured | `StartZone` refuses (empty phase table) |
+
+### Replication (UGFReplicationManager) — Phase 06
+| Failure mode | Behaviour |
+|---|---|
+| No owner actor | Priority 0.0, no crash |
+| Player idle (< 5 cm move) | No position update sent |
+| Heartbeat silent > 30 s | `HasTimedOut()` true (fallback — the engine timeout normally fires first) |
+
 ## What is still unproven
 
 - All of the above is **code review only**. No test in this repo

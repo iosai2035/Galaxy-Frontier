@@ -229,3 +229,72 @@ Common rules for all screens:
 - The mission subsystem marks the mission complete before
   this widget opens; completing twice is impossible
   (`CompleteMission` is a no-op after completion — Phase 03).
+
+## WBP_Lobby (Phase 06, spec only)
+
+- Parent: `UUserWidget`. Shown after joining a session, before
+  the match starts (GameMode state `Lobby`, `AGFGameState::
+  MatchState`). Created by the lobby flow, not by
+  `UGFHUDController` (the HUD controller owns in-match screens
+  only).
+- Elements: session name + mode line ("Battle Royale — up to 60
+  players"), player list (name + level + alive state, from
+  `AGFGameState::PlayerArray` / `AGFPlayerState`, read on
+  construct and on the `OnMatchStateChanged` event — never
+  polled), a countdown line (`MatchTimerRemaining`, "Match
+  starts in 23 s"), a Ready toggle (visual only in Phase 06 —
+  readiness does not gate the start; the timer does), and a
+  Leave button (calls `UGFSessionManager::LeaveSession`; in
+  the lobby this just removes the player).
+- The list shows at most 60 rows; an empty lobby shows "Waiting
+  for players…" instead of an empty list.
+- Back: Leave returns to `WBP_MainMenu`.
+
+## WBP_Matchmaking (Phase 06, spec only)
+
+- Parent: `UUserWidget`. Opened from `WBP_MainMenu` ("Play
+  Online" button). Drives `UGFSessionManager::FindSessions`
+  with the player's saved level.
+- Elements: a level line ("Your level: 7 — searching sessions
+  within ±3 levels"), a searching spinner, a results list
+  (host level + mode + player count per session, from
+  `GetFoundSessionCount()` / `GetFoundSessionHostLevel()`),
+  Join (calls `JoinSession(index)`), Host (calls
+  `CreateSession(level, bIsBattleRoyale)` then opens
+  `WBP_Lobby`), and Cancel.
+- No results: the list shows "No sessions found — host one or
+  try again" after the 60 s search timeout. No fake sessions
+  and no bots are ever shown — an empty list is an empty list.
+- Back: Cancel returns to `WBP_MainMenu`; leaving mid-search
+  cancels the search (`CancelFindSessions`).
+
+## WBP_MultiplayerHUD (Phase 06, spec only)
+
+- Parent: `UGFMobileHUDWidget` (the Phase 04 HUD base — same
+  joystick, buttons and safe-area rules as `WBP_MobileHUD`).
+- Extra elements over the single-player HUD: alive-players
+  counter (`AGFGameState::AlivePlayerCount` / `TotalPlayerCount`),
+  eliminations counter (own `AGFPlayerState::Eliminations`),
+  zone status line (current radius + DPS outside, from
+  `AGFGameState::ZoneRadius` — "Outside the zone!" warning
+  when the player is outside it), placement line at match end
+  ("#1 — Victory" / "#7", from `ClientShowMatchResult`), and
+  a match-result panel (placement, eliminations, XP earned).
+- The zone is drawn as a circle on the mini-map area when the
+  map asset exists; until then the status line is the only zone
+  display — no fake map is drawn.
+- Back: none in-match (Pause handles leaving); the result panel
+  has Main Menu and Play Again (Play Again re-opens
+  `WBP_Matchmaking`).
+
+## WBP_Spectate (Phase 06, spec only — NOT IMPLEMENTED)
+
+- Parent: `UUserWidget`. Intended screen for watching a match
+  after elimination. **Not implemented in Phase 06**: there is
+  no spectate camera, no player switching, and no code that
+  opens this screen. A dead player sees the match-result panel
+  on `WBP_MultiplayerHUD` at match end instead.
+- Spec kept so the screen is not built ad-hoc later: when it
+  is implemented it must show the alive players list, a
+  "watching <name>" line, and a Leave button — and it must
+  never let a spectator send gameplay input.

@@ -5,6 +5,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/UGFHealthComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "Multiplayer/UGFServerValidation.h"
 
 AGFProjectile::AGFProjectile()
 {
@@ -81,6 +82,17 @@ void AGFProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	}
 	bHasHit = true;
 
+	// Phase 06: only the server applies damage. A client-side
+	// projectile (spawned by a client-side fire prediction, or a
+	// replicated copy) never damages anything — the server's own
+	// projectile is the one that hits. In single-player this
+	// actor IS the authority, so behaviour is unchanged.
+	if (!HasAuthority())
+	{
+		Destroy();
+		return;
+	}
+
 	// Range guard FIRST: a hit beyond MaxRange destroys the
 	// projectile but applies no damage.
 	if (FVector::Dist(SpawnLocation, GetActorLocation()) > MaxRange)
@@ -94,9 +106,31 @@ void AGFProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	// Walls / terrain / props have none and take no damage here;
 	// impact VFX/SFX are spawned by the weapon (Phase 02, Niagara
 	// assets created in the Editor — see Docs/WEAPONS.md).
+	//
+	// Phase 06: player shots go through server validation
+	// (UGFServerValidation::ApplyValidatedDamage): range, alive
+	// state, match state and the damage cap are checked, and a
+	// kill notifies the GameMode for elimination credit. A shot
+	// with no player instigator (e.g. an AI enemy projectile)
+	// has no validation component — it is server-spawned and
+	// server-authoritative by construction, so it applies damage
+	// directly (AI enemies only exist in single-player missions
+	// in Phases 02-03; networked AI is NOT IMPLEMENTED).
 	if (UGFHealthComponent* Health = OtherActor->FindComponentByClass<UGFHealthComponent>())
 	{
-		Health->ApplyDamage(Damage, GetOwner());
+		UGFServerValidation* Validation = nullptr;
+		if (APawn* InstigatorPawn = GetInstigator())
+		{
+			Validation = InstigatorPawn->FindComponentByClass<UGFServerValidation>();
+		}
+		if (Validation)
+		{
+			Validation->ApplyValidatedDamage(OtherActor, Damage, SpawnLocation, MaxRange);
+		}
+		else
+		{
+			Health->ApplyDamage(Damage, GetOwner());
+		}
 	}
 
 	Destroy();
