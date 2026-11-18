@@ -1,18 +1,24 @@
-// Galaxy Frontier — AGFCharacter.cpp (Phase 01)
-// Third-person movement, camera and Enhanced Input. Combat, interaction
-// and inventory handlers at the bottom are NOT IMPLEMENTED stubs
-// (Phase 02 / Phase 05) — they log a warning and return.
+// Galaxy Frontier — AGFCharacter.cpp (Phases 01-03)
+// Third-person movement, camera and Enhanced Input (Phase 01).
+// Combat handlers delegate to UGFCombatComponent (Phase 02, real),
+// Interact delegates to UGFInteractionComponent (Phase 03, real).
+// OpenInventory / Pause remain stubs for Phases 05 / 04.
 
 #include "AGFCharacter.h"
 
 #include "Camera/CameraComponent.h"
+#include "Combat/UGFCombatComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/UGFHealthComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputActionValue.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "World/UGFInteractionComponent.h"
 
 AGFCharacter::AGFCharacter()
 {
@@ -46,6 +52,69 @@ AGFCharacter::AGFCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->FieldOfView = CameraFOV;
+
+	// Phase 02/03 components. Created here so they are never null in
+	// game; every use site still null-checks them (Docs/RELIABILITY.md).
+	HealthComponent = CreateDefaultSubobject<UGFHealthComponent>(TEXT("HealthComponent"));
+	CombatComponent = CreateDefaultSubobject<UGFCombatComponent>(TEXT("CombatComponent"));
+	InteractionComponent = CreateDefaultSubobject<UGFInteractionComponent>(TEXT("InteractionComponent"));
+}
+
+void AGFCharacter::ApplyCustomization(const FGFCharacterCustomization& NewCustomization)
+{
+	Customization = NewCustomization;
+	USkeletalMeshComponent* Mesh = GetMesh();
+	if (!Mesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::ApplyCustomization — no Skeletal Mesh (assign one in the Editor)."));
+		return;
+	}
+	// Dynamic material instances per slot, tinted by the customisation
+	// colours. Parameter names must match the materials authored in
+	// the Editor (see Docs/CHARACTERS.md); a missing parameter is a
+	// no-op in UMaterialInstanceDynamic, never a crash.
+	UMaterialInstanceDynamic* SkinMID = Mesh->CreateDynamicMaterialInstance(
+		Customization.SkinMaterialSlot, Mesh->GetMaterial(Customization.SkinMaterialSlot));
+	if (SkinMID)
+	{
+		SkinMID->SetVectorParameterValue(TEXT("SkinTone"), Customization.SkinTone);
+	}
+	UMaterialInstanceDynamic* ArmourMID = Mesh->CreateDynamicMaterialInstance(
+		Customization.ArmourMaterialSlot, Mesh->GetMaterial(Customization.ArmourMaterialSlot));
+	if (ArmourMID)
+	{
+		ArmourMID->SetVectorParameterValue(TEXT("ArmourTint"), Customization.ArmourTint);
+	}
+	ApplyForcedLOD();
+}
+
+void AGFCharacter::ApplyMaterialToSlot(int32 SlotIndex, UMaterialInterface* Material)
+{
+	USkeletalMeshComponent* Mesh = GetMesh();
+	if (!Mesh || !Material || SlotIndex < 0 || SlotIndex >= Mesh->GetNumMaterials())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::ApplyMaterialToSlot — invalid mesh/material/slot %d."), SlotIndex);
+		return;
+	}
+	Mesh->SetMaterial(SlotIndex, Material);
+}
+
+void AGFCharacter::ApplyForcedLOD()
+{
+	USkeletalMeshComponent* Mesh = GetMesh();
+	if (!Mesh)
+	{
+		return;
+	}
+	if (ForcedLOD >= 0)
+	{
+		const int32 LODCount = Mesh->GetNumLODs();
+		Mesh->SetForcedLOD(FMath::Clamp(ForcedLOD, 0, FMath::Max(0, LODCount - 1)));
+	}
+	else
+	{
+		Mesh->SetForcedLOD(-1);
+	}
 }
 
 void AGFCharacter::BeginPlay()
@@ -70,6 +139,10 @@ void AGFCharacter::BeginPlay()
 			}
 		}
 	}
+
+	// Apply the designer-set customisation / LOD. A missing mesh is
+	// logged inside ApplyCustomization, never a crash.
+	ApplyCustomization(Customization);
 }
 
 void AGFCharacter::Tick(float DeltaTime)
@@ -115,7 +188,14 @@ void AGFCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 		EnhancedInput->BindAction(AimAction, ETriggerEvent::Started, this, &AGFCharacter::HandleAimStarted);
 		EnhancedInput->BindAction(AimAction, ETriggerEvent::Completed, this, &AGFCharacter::HandleAimCompleted);
 	}
-	if (FireAction) { EnhancedInput->BindAction(FireAction, ETriggerEvent::Triggered, this, &AGFCharacter::HandleFire); }
+	if (FireAction)
+	{
+		// Started = trigger pull (StartFire, timer handles automatic
+		// weapons), Completed = release (StopFire). Never fire on
+		// Triggered alone — that would bypass the fire-rate timer.
+		EnhancedInput->BindAction(FireAction, ETriggerEvent::Started, this, &AGFCharacter::HandleFireStarted);
+		EnhancedInput->BindAction(FireAction, ETriggerEvent::Completed, this, &AGFCharacter::HandleFireCompleted);
+	}
 	if (ReloadAction) { EnhancedInput->BindAction(ReloadAction, ETriggerEvent::Started, this, &AGFCharacter::HandleReload); }
 	if (InteractAction) { EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AGFCharacter::HandleInteract); }
 	if (SwitchWeaponAction) { EnhancedInput->BindAction(SwitchWeaponAction, ETriggerEvent::Started, this, &AGFCharacter::HandleSwitchWeapon); }
@@ -214,28 +294,57 @@ void AGFCharacter::UpdateMovementSpeed()
 	}
 }
 
-// --- NOT IMPLEMENTED stubs (Phase 02 / Phase 05) -------------------------
-// Each logs once per call and does nothing else. No ammo, damage,
-// weapon, inventory or pause behaviour is faked here.
+// --- Phase 02 / 03 — real implementations ---------------------------
+// Fire / Reload / SwitchWeapon delegate to UGFCombatComponent.
+// Interact delegates to UGFInteractionComponent. A missing component
+// is logged and ignored — the character never crashes on input.
 
-void AGFCharacter::HandleFire()
+void AGFCharacter::HandleFireStarted()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleFire — NOT IMPLEMENTED (Phase 02 Combat)."));
+	if (!CombatComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleFireStarted — no CombatComponent."));
+		return;
+	}
+	CombatComponent->StartFire();
+}
+
+void AGFCharacter::HandleFireCompleted()
+{
+	if (CombatComponent)
+	{
+		CombatComponent->StopFire();
+	}
 }
 
 void AGFCharacter::HandleReload()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleReload — NOT IMPLEMENTED (Phase 02 Combat)."));
+	if (!CombatComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleReload — no CombatComponent."));
+		return;
+	}
+	CombatComponent->Reload();
 }
 
 void AGFCharacter::HandleInteract()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleInteract — NOT IMPLEMENTED (Phase 03 World)."));
+	if (!InteractionComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleInteract — no InteractionComponent."));
+		return;
+	}
+	InteractionComponent->BeginInteraction();
 }
 
 void AGFCharacter::HandleSwitchWeapon()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleSwitchWeapon — NOT IMPLEMENTED (Phase 02 Combat)."));
+	if (!CombatComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleSwitchWeapon — no CombatComponent."));
+		return;
+	}
+	CombatComponent->SwitchToNextWeapon();
 }
 
 void AGFCharacter::HandleOpenInventory()

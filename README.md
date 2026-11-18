@@ -11,6 +11,14 @@ logos or assets copied from other games.
   C++ module, Config, Docs and Git setup are written and reviewed.
 - **Phase 01 — Character: CREATED / REVIEWED.** `AGFCharacter`, Enhanced Input
   wiring and movement values are written and reviewed.
+- **Phase 02 — Combat & AI: CREATED / REVIEWED.** Health/shield, combat,
+  weapons, projectiles, enemy + AI (perception, Blackboard, Behavior
+  Tree spec + timer fallback). `Fire` / `Reload` / `SwitchWeapon`
+  are real implementations now — the Phase 01 stubs are replaced.
+- **Phase 03 — World & Missions: CREATED / REVIEWED.** Mission
+  subsystem, objectives, data asset, save, interaction system,
+  planet ZERON spec, mission "The Lost Power Core" (9 stages).
+  `Interact` is a real implementation now.
 - **BUILT: NONE. TESTED: NONE.** Unreal Engine is **not installed** on this
   Linux VM and there is no Xcode / macOS here, so no UE build, no IPA build,
   no signing and no device test has been run. See `Docs/ENVIRONMENT.md`.
@@ -51,9 +59,15 @@ GalaxyFrontier/
   Config/            Engine / Game / Input / Scalability / DeviceProfiles
   Source/            C++ module GalaxyFrontier + GalaxyFrontier.Target.cs
     GalaxyFrontier/
-      Characters/    AGFCharacter (Phase 01)
-      Tests/         Automation test skeleton (NOT RUN — no UE here)
-  Content/           README only in Phases 00-01; no fake .uasset files
+      Characters/    AGFCharacter (Phases 01-03)
+      Components/    UGFHealthComponent (Phase 02)
+      Combat/        UGFCombatComponent (Phase 02)
+      Weapons/       AGFWeaponBase, AGFProjectile, UGFWeaponDataAsset (Phase 02)
+      AI/            AGFEnemyCharacter, AGFEnemyAIController, UGFEnemyHealthComponent (Phase 02)
+      Missions/      UGFMissionSubsystem, UGFObjectiveComponent, UGFMissionDataAsset, UGFMissionSaveGame (Phase 03)
+      World/         IGFInteractable, UGFInteractionComponent, AGFInteractableActor (Phase 03)
+      Tests/         Automation test skeletons (NOT RUN — no UE here)
+  Content/           README only in Phases 00-03; no fake .uasset files
   Docs/              Roadmap, quality, device matrix, environment, reports
 ```
 
@@ -62,9 +76,11 @@ GalaxyFrontier/
 - **00 Foundation** — project, structure, modules, Config, Git, Docs.
 - **01 Character** — character, camera, movement, touch input, HUD spec.
 - **02 Combat & AI** — health/shield, weapons, projectiles, enemies, AI.
-  Not started. `AGFCharacter::Fire` / `Reload` are declared stubs only.
-- **03 World & Missions** — planet ZERON, `L_ZERON_Prototype`, mission
-  "The Lost Power Core".
+  Done (CREATED / REVIEWED, not built/tested — see above).
+- **03 World & Missions** — planet ZERON, `L_ZERON_Prototype` spec,
+  mission "The Lost Power Core" (9 stages), interaction system.
+  Done (CREATED / REVIEWED, not built/tested). The level itself is
+  an Editor asset, not a file in this repo.
 - **04 Mobile UI & Optimization** — full UMG, settings, performance.
 - **05 Expansion** — customisation, inventory, vehicles, ships, planets.
 - **06 Multiplayer** — dedicated server, lobby, sessions, Battle Royale

@@ -35,15 +35,42 @@ Ubuntu-based). Commands run: `which <tool>`, `ls /opt`, `git --version`,
 
 - **UE build: BLOCKED.** No compile, no Editor open, no cook.
 - **IPA build: BLOCKED.** Requires macOS + Xcode + iOS SDK + UE iOS support + Apple signing.
+  A GitHub Actions path now exists (`.github/workflows/
+  build-ios-ipa.yml`, macos-15, unsigned IPA for SideStore) but it
+  has **never run** — and a standard GitHub-hosted runner cannot
+  hold UE 5.5 (14 GB disk vs 40–60 GB engine). See
+  `Docs/BUILD-IPA-SIDESTORE.md` for the full feasibility numbers.
 - **Signing / provisioning: BLOCKED.** No certificates on this VM and none
-  may be committed to the repo (see `.gitignore`).
+  may be committed to the repo (see `.gitignore`). The SideStore
+  path deliberately uses an **unsigned** IPA; SideStore applies the
+  user's own free Apple ID signature on the phone (7 days, 3 apps).
 - **Device testing: BLOCKED.** No iPhone / iPad available here.
 - **Automation tests: NOT RUN.** `GFCharacterMovementTest.cpp` is a
   skeleton; it has never executed.
-- **GitHub repo state (verified 2026-11-18 via the connected account):**
-  `iosai2035/Galaxy-Frontier`, branch `main`, **empty — no commits, no
-  files**. `get_file_contents` / `list_commits` return `409 Git Repository
-  is empty`. Nothing has been pushed from this VM.
+- **GitHub repo state (verified live 2026-11-18 via the connected
+  account):** `iosai2035/Galaxy-Frontier`, branch `main`, HEAD
+  `d1f8965f` ("Fix README: record Phase 00+01 push commit"), with
+  `86202c1f` (Phases 00+01) before it. The repo was empty when
+  first verified; Phases 00+01 have since been pushed. The
+  SideStore workflow and `Docs/BUILD-IPA-SIDESTORE.md` in this
+  working copy are **not yet pushed**.
+
+## GitHub Actions IPA path (2026-11-18, NOT RUN)
+
+- Workflow: `.github/workflows/build-ios-ipa.yml` — `macos-15`
+  (NOT `macos-14`: retired 2026-11-02), Xcode 16.x, UE 5.5,
+  `RunUAT BuildCookRun -platform=IOS -NoCodeSign`, unsigned `.ipa`
+  uploaded as an Actions artifact (7-day retention).
+- Standard runner limits verified against GitHub's official docs
+  2026-11-18: macos-15 arm64 = 3 vCPU / 7 GB RAM / **14 GB SSD**;
+  job cap 6 h; cache cap 10 GB/repo; Free artifact storage 500 MB.
+  UE 5.5 is 40–60 GB installed, so a standard runner is **not
+  feasible** — the workflow fails fast on a missing engine / low
+  disk instead of attempting a doomed build.
+- Realistic routes: self-hosted Mac with UE 5.5 pre-installed
+  (recommended), or a paid runner whose disk is verified larger
+  from a real `df -h` run. Full analysis:
+  `Docs/BUILD-IPA-SIDESTORE.md`.
 
 ## What to do on the build machine (macOS)
 

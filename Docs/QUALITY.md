@@ -36,3 +36,30 @@
     test that can run, write a clear commit message.
 15. Do not mix CREATED with BUILT/TESTED in a report. A file can be
     CREATED + REVIEWED and still be BLOCKED for build/test.
+
+## Reliability rules (Phases 02–03, see Docs/RELIABILITY.md)
+
+16. Every public function that can fail returns `bool` or a count.
+17. No Tick-heavy logic: timers and events only. The only Tick in
+    the project is `AGFCharacter::Tick` (camera smoothing).
+18. Validate and clamp every numeric input; reject non-finite
+    values with a warning. A bad caller must never drive health,
+    ammo or a stage index out of range.
+19. State machines are explicit and terminal states (Die,
+    MissionComplete) cannot be left except by an explicit
+    `Revive()` / new mission start.
+20. No silent failures: a missing asset, a failed spawn, a
+    rejected mission stage or an out-of-range interaction logs
+    a warning with the actor and the reason.
+
+## Graphics budgets (targets, to measure — Phase 04)
+
+21. Draw calls ≤ 150 (High) / ≤ 80 (Low); polygons ≤ 500k (High) /
+    ≤ 200k (Low); texture memory ≤ 512 MB (High) / ≤ 256 MB (Low).
+22. Dynamic lights ≤ 2; shadow-casting lights: 1 directional only.
+23. Lumen is NOT used on iOS. Nanite only where UE 5.5 on iOS
+    supports it; otherwise traditional LODs carry the quality.
+24. Character textures: 2048 px (High) / 1024 px (Medium) /
+    512 px (Low). PBR skin/cloth/metal per Docs/CHARACTERS.md.
+25. No fixed 60 fps is promised on any device. Per-device
+    targets and measurements live in Docs/DEVICE_TEST_MATRIX.md.
