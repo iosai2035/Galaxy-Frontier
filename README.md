@@ -28,7 +28,8 @@ logos or assets copied from other games.
 3. **MIT License** is used until the user picks another licence.
 4. The GitHub repo is `iosai2035/Galaxy-Frontier`, branch `main`.
    It was **empty** (no commits, no files) when verified on 2026-11-18.
-   Nothing has been pushed from this Linux VM.
+   Phases 00 + 01 were pushed 2026-11-18 14:10 UTC in commit
+   `86202c1f2727c436a03d7bfe7aab86f8fd1c6f5d`.
 
 ## How to open (macOS only)
 
