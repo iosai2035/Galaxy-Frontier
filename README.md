@@ -1,0 +1,81 @@
+# Galaxy Frontier
+
+Sci-fi third-person action/adventure for **iPhone and iPad**, built with **Unreal Engine 5**.
+
+Original world, original characters, original story. No characters, maps,
+logos or assets copied from other games.
+
+## Status (2026-11-18, verified live on Linux)
+
+- **Phase 00 — Foundation: CREATED / REVIEWED.** Project structure, `.uproject`,
+  C++ module, Config, Docs and Git setup are written and reviewed.
+- **Phase 01 — Character: CREATED / REVIEWED.** `AGFCharacter`, Enhanced Input
+  wiring and movement values are written and reviewed.
+- **BUILT: NONE. TESTED: NONE.** Unreal Engine is **not installed** on this
+  Linux VM and there is no Xcode / macOS here, so no UE build, no IPA build,
+  no signing and no device test has been run. See `Docs/ENVIRONMENT.md`.
+  Those steps are **BLOCKED** until the project is opened on macOS with a
+  compatible Xcode + iOS SDK + UE 5.5 with iOS support.
+
+## Assumptions (recorded, not hidden)
+
+1. **Unreal Engine 5.5** is the target version. The master prompt did not
+   specify a version; 5.5 was chosen because it is a current, stable UE5
+   line with Enhanced Input / Niagara / World Partition support.
+2. **Bundle Identifier `com.iosai2035.GalaxyFrontier`** and **minimum iOS 16.0**
+   are placeholders until the user confirms the Apple Developer account
+   details. Do not ship with them unconfirmed.
+3. **MIT License** is used until the user picks another licence.
+4. The GitHub repo is `iosai2035/Galaxy-Frontier`, branch `main`.
+   It was **empty** (no commits, no files) when verified on 2026-11-18.
+   Nothing has been pushed from this Linux VM.
+
+## How to open (macOS only)
+
+1. Install Unreal Engine 5.5 (Epic Games Launcher) with iOS support.
+2. Install a compatible Xcode + iOS SDK.
+3. Clone `https://github.com/iosai2035/Galaxy-Frontier`, branch `main`.
+4. Right-click `GalaxyFrontier.uproject` → Generate Xcode project files,
+   or open the `.uproject` in the Unreal Editor.
+5. In the Editor, create the Input Actions / Mapping Context listed in
+   `Docs/INPUT.md` and the `WBP_MobileHUD` widget listed in
+   `Docs/MOBILE-HUD.md` — these are Blueprint/UMG assets and cannot be
+   authored as files on Linux (no `.uasset` binaries are faked in this repo).
+
+## Project layout
+
+```
+GalaxyFrontier/
+  GalaxyFrontier.uproject
+  Config/            Engine / Game / Input / Scalability / DeviceProfiles
+  Source/            C++ module GalaxyFrontier + GalaxyFrontier.Target.cs
+    GalaxyFrontier/
+      Characters/    AGFCharacter (Phase 01)
+      Tests/         Automation test skeleton (NOT RUN — no UE here)
+  Content/           README only in Phases 00-01; no fake .uasset files
+  Docs/              Roadmap, quality, device matrix, environment, reports
+```
+
+## Phases
+
+- **00 Foundation** — project, structure, modules, Config, Git, Docs.
+- **01 Character** — character, camera, movement, touch input, HUD spec.
+- **02 Combat & AI** — health/shield, weapons, projectiles, enemies, AI.
+  Not started. `AGFCharacter::Fire` / `Reload` are declared stubs only.
+- **03 World & Missions** — planet ZERON, `L_ZERON_Prototype`, mission
+  "The Lost Power Core".
+- **04 Mobile UI & Optimization** — full UMG, settings, performance.
+- **05 Expansion** — customisation, inventory, vehicles, ships, planets.
+- **06 Multiplayer** — dedicated server, lobby, sessions, Battle Royale
+  (only after the network base is built and tested).
+
+See `Docs/ROADMAP.md` for the full plan and `Docs/QUALITY.md` for the
+rules that apply to every file: no fake code, no invented test results,
+no claim of BUILT / TESTED without a real run.
+
+## iOS / IPA — hard requirement
+
+A real IPA requires **macOS + compatible Xcode + iOS SDK + UE with iOS
+support + Apple signing (certificate + provisioning profile)**.
+It cannot be produced from Linux alone. Any claim otherwise in this repo
+would be false; none is made.

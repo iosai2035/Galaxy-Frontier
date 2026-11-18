@@ -1,0 +1,35 @@
+# Unreal Engine — generated / local files. Never commit these.
+DerivedDataCache/
+Intermediate/
+Saved/
+Binaries/
+.vs/
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+Build/
+# Xcode / macOS generated
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.ipa
+*.dSYM/
+# Apple signing — NEVER commit certificates, keys or profiles.
+*.p12
+*.pem
+*.key
+*.mobileprovision
+*.provisionprofile
+*.cer
+# Secrets — never commit.
+*.env
+*secret*
+*credentials*
+# OS files
+.DS_Store
+Thumbs.db
+# Editor / IDE
+.idea/
+*.code-workspace
