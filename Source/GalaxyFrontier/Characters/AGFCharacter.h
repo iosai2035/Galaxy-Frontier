@@ -1,7 +1,7 @@
-// Galaxy Frontier — AGFCharacter.h (Phases 01-03)
+// Galaxy Frontier — AGFCharacter.h (Phases 01-05)
 // Third-person player character. Movement, camera and input (Phase 01),
 // health + combat (Phase 02, real implementations), interaction
-// (Phase 03). Inventory / Pause remain later phases — see .cpp.
+// (Phase 03). Inventory / equipment / progression (Phase 05).
 // Realistic-character hooks: material slots, LOD and customisation
 // (Docs/CHARACTERS.md). Meshes themselves are authored in Blender /
 // MetaHuman-style tooling on macOS/Windows — no mesh binary is faked.
@@ -20,7 +20,21 @@ class UGFHealthComponent;
 class UGFCombatComponent;
 class UGFInteractionComponent;
 class UGFHUDController;
+class UGFInventoryComponent;
+class UGFEquipmentComponent;
+class UGFProgressionComponent;
 struct FInputActionValue;
+
+// Two base bodies (male / female, Phase 05 customisation) share
+// the same skeleton so one Animation Blueprint retargets to both
+// (Docs/CHARACTERS.md). The body is a mesh choice made in the
+// Editor — this value only records which one is active.
+UENUM(BlueprintType)
+enum class EGFBodyType : uint8
+{
+	Male		UMETA(DisplayName = "Male"),
+	Female		UMETA(DisplayName = "Female")
+};
 
 // Customisation applied to the character's materials (Phase 02/05).
 // Colours are material parameters, not new meshes: SkinTone tints the
@@ -32,6 +46,9 @@ struct FGFCharacterCustomization
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Customization")
+	EGFBodyType BodyType = EGFBodyType::Male;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Customization")
 	FLinearColor SkinTone = FLinearColor(0.72f, 0.53f, 0.42f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Customization")
@@ -39,6 +56,11 @@ struct FGFCharacterCustomization
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Customization")
 	FLinearColor ArmourTint = FLinearColor(0.15f, 0.25f, 0.35f);
+
+	// Phase 05: accent colour for the metal/tech slot (slot 2) —
+	// visor trim, lights, edge details. Cosmetic only.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Customization")
+	FLinearColor AccentColour = FLinearColor(0.10f, 0.55f, 0.65f);
 
 	// Material slot indices on the character Skeletal Mesh.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Customization")
@@ -137,6 +159,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|UI")
 	TObjectPtr<UGFHUDController> HUDController;
 
+	// Phase 05: inventory + equipment + progression. Created in
+	// the constructor; every use site still null-checks them
+	// (Docs/RELIABILITY.md).
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Inventory")
+	TObjectPtr<UGFInventoryComponent> InventoryComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Equipment")
+	TObjectPtr<UGFEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Progression")
+	TObjectPtr<UGFProgressionComponent> ProgressionComponent;
+
 	// --- Realistic-character hooks (Docs/CHARACTERS.md) ---
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Character")
 	FGFCharacterCustomization Customization;
@@ -165,6 +199,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "GF|UI")
 	UGFHUDController* GetHUDController() const { return HUDController; }
+
+	UFUNCTION(BlueprintPure, Category = "GF|Inventory")
+	UGFInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "GF|Equipment")
+	UGFEquipmentComponent* GetEquipmentComponent() const { return EquipmentComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "GF|Progression")
+	UGFProgressionComponent* GetProgressionComponent() const { return ProgressionComponent; }
 
 	// Phase 04: touch-button state setters. The HUD buttons call
 	// these (the keyboard handlers set the same flags directly).
@@ -231,9 +274,9 @@ protected:
 	// Input handlers — Fire / Reload / SwitchWeapon implemented in
 	// Phase 02 (delegated to UGFCombatComponent), Interact in Phase 03
 	// (delegated to UGFInteractionComponent), Pause in Phase 04
-	// (delegated to UGFHUDController). OpenInventory remains a stub
-	// for Phase 05 — it logs a warning and does nothing else, no
-	// fake behaviour is simulated.
+	// (delegated to UGFHUDController), OpenInventory in Phase 05
+	// (delegated to UGFHUDController::ToggleInventory). No Phase 01
+	// stub remains.
 	void HandleFireStarted();
 	void HandleFireCompleted();
 	void HandleReload();

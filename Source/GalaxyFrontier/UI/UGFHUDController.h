@@ -1,10 +1,11 @@
-// Galaxy Frontier — UGFHUDController.h (Phase 04)
+// Galaxy Frontier — UGFHUDController.h (Phases 04-05)
 // Actor component on AGFCharacter: the single bridge between
 // gameplay and the UMG widgets. It binds to the existing
 // delegates (health / shield / ammo / weapon switched / mission /
 // interaction) and re-broadcasts them for the widgets, so no
 // widget polls anything every frame. It also owns the HUD, Pause,
-// Game Over and Mission Complete widgets and the pause state.
+// Game Over, Mission Complete and (Phase 05) Inventory widgets
+// and the pause state.
 //
 // Widget classes are assigned in the Editor (WBP_MobileHUD etc.
 // — Blueprint assets, see Docs/MOBILE-HUD.md and
@@ -55,6 +56,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|UI")
 	TSubclassOf<UUserWidget> MissionCompleteWidgetClass;
 
+	// Phase 05: WBP_Inventory class (assigned in the Editor).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|UI")
+	TSubclassOf<UUserWidget> InventoryWidgetClass;
+
 	// --- Live widgets (null until created) ---
 	UPROPERTY(BlueprintReadOnly, Category = "GF|UI")
 	TObjectPtr<UUserWidget> HUDWidget;
@@ -69,7 +74,20 @@ public:
 	TObjectPtr<UUserWidget> MissionCompleteWidget;
 
 	UPROPERTY(BlueprintReadOnly, Category = "GF|UI")
+	TObjectPtr<UUserWidget> InventoryWidget;
+
+	UPROPERTY(BlueprintReadOnly, Category = "GF|UI")
 	bool bIsPaused = false;
+
+	// Phase 05: true while the Inventory screen is open, and
+	// true when the Inventory screen (not the Pause menu) paused
+	// the game. The two screens never stack (see .cpp), so
+	// exactly one of them owns the pause at a time.
+	UPROPERTY(BlueprintReadOnly, Category = "GF|UI")
+	bool bIsInventoryOpen = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "GF|UI")
+	bool bInventoryPausedGame = false;
 
 	// --- Events for the widgets (Blueprint binds here) ---
 	// Health / shield / death are the UGFHealthComponent
@@ -121,6 +139,23 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GF|UI")
 	bool ClosePauseMenu();
+
+	// Phase 05: Inventory screen. Opens (pauses the game, stops
+	// firing, shows WBP_Inventory) and closes it. Refuses to open
+	// while the Pause menu is open, and vice versa — the two
+	// screens never stack, so closing one never resumes a game
+	// the other paused.
+	UFUNCTION(BlueprintCallable, Category = "GF|UI")
+	bool ToggleInventory();
+
+	UFUNCTION(BlueprintCallable, Category = "GF|UI")
+	bool OpenInventory();
+
+	UFUNCTION(BlueprintCallable, Category = "GF|UI")
+	bool CloseInventory();
+
+	UFUNCTION(BlueprintPure, Category = "GF|UI")
+	bool IsInventoryOpen() const { return bIsInventoryOpen; }
 
 	// Pulls every current value once and re-broadcasts it, so a
 	// widget created late (or rebound) shows correct values

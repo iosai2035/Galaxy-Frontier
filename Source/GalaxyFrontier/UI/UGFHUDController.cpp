@@ -1,4 +1,7 @@
-// Galaxy Frontier — UGFHUDController.cpp (Phase 04)
+// Galaxy Frontier — UGFHUDController.cpp (Phases 04-05)
+// Phase 05 adds the Inventory widget (Open/Close/ToggleInventory)
+// following the Pause menu pattern, with its own pause flag so
+// closing the inventory never resumes a game paused by the menu.
 
 #include "UI/UGFHUDController.h"
 
@@ -62,6 +65,7 @@ void UGFHUDController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	HideWidget(PauseWidget);
 	HideWidget(GameOverWidget);
 	HideWidget(MissionCompleteWidget);
+	HideWidget(InventoryWidget);
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -187,6 +191,14 @@ bool UGFHUDController::OpenPauseMenu()
 	{
 		return true;
 	}
+	// The Pause menu and the Inventory screen never stack: the
+	// player closes one before opening the other, so exactly one
+	// screen owns the pause state at a time.
+	if (bIsInventoryOpen)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] UGFHUDController::OpenPauseMenu — inventory is open; close it first."));
+		return false;
+	}
 	// Stop firing first: a held Fire button must not keep
 	// shooting while the game is paused.
 	if (UGFCombatComponent* Combat = GetCombatComponent())
@@ -226,6 +238,87 @@ bool UGFHUDController::ClosePauseMenu()
 	bIsPaused = false;
 	PC->SetInputMode(FInputModeGameOnly());
 	PC->bShowMouseCursor = false;
+	return true;
+}
+
+// --- Phase 05: Inventory ------------------------------------------
+// The inventory pauses the game while open (same rule as the
+// WeaponSelection screen). bInventoryPausedGame records whether
+// THIS screen paused the game: closing the inventory must never
+// resume a game the player paused with the Pause menu, and
+// opening the inventory while paused must not double-pause.
+
+bool UGFHUDController::ToggleInventory()
+{
+	return bIsInventoryOpen ? CloseInventory() : OpenInventory();
+}
+
+bool UGFHUDController::OpenInventory()
+{
+	UWorld* World = GetWorld();
+	APlayerController* PC = GetPlayerController();
+	if (!World || !PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] UGFHUDController::OpenInventory — no world/player controller."));
+		return false;
+	}
+	if (bIsInventoryOpen)
+	{
+		return true;
+	}
+	// The Pause menu and the Inventory screen never stack (see
+	// OpenPauseMenu): close the Pause menu before opening the
+	// inventory, so exactly one screen owns the pause state.
+	if (bIsPaused)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] UGFHUDController::OpenInventory — game is paused by the Pause menu; close it first."));
+		return false;
+	}
+	if (UGFCombatComponent* Combat = GetCombatComponent())
+	{
+		Combat->StopFire();
+	}
+	// The game is not paused here (OpenInventory refuses while
+	// the Pause menu is open), so this screen always owns the
+	// pause it creates — CloseInventory resumes it.
+	UGameplayStatics::SetGamePaused(World, true);
+	bInventoryPausedGame = true;
+	bIsInventoryOpen = true;
+	if (InventoryWidgetClass)
+	{
+		ShowWidget(InventoryWidgetClass, InventoryWidget);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] UGFHUDController::OpenInventory — game paused, but InventoryWidgetClass (WBP_Inventory) is not assigned; no inventory shown."));
+	}
+	PC->SetInputMode(FInputModeUIOnly());
+	PC->bShowMouseCursor = true;
+	return true;
+}
+
+bool UGFHUDController::CloseInventory()
+{
+	UWorld* World = GetWorld();
+	APlayerController* PC = GetPlayerController();
+	if (!World || !PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] UGFHUDController::CloseInventory — no world/player controller."));
+		return false;
+	}
+	if (!bIsInventoryOpen)
+	{
+		return true;
+	}
+	HideWidget(InventoryWidget);
+	bIsInventoryOpen = false;
+	if (bInventoryPausedGame)
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+		bInventoryPausedGame = false;
+		PC->SetInputMode(FInputModeGameOnly());
+		PC->bShowMouseCursor = false;
+	}
 	return true;
 }
 

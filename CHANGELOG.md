@@ -3,6 +3,98 @@
 All notable changes, per phase. Statuses: CREATED / REVIEWED / BUILT /
 TESTED / BLOCKED / NOT IMPLEMENTED (see Docs/QUALITY.md).
 
+## [Phase 05 — Expansion] — 2026-11-18
+
+### Added
+- `Source/GalaxyFrontier/Inventory/UGFItemDataAsset.h/.cpp` —
+  data-only item definition: stable `ItemId`, type (Weapon /
+  Ammo / HealthPack / ShieldCell / ShieldGenerator /
+  MissionItem / Material), cosmetic-only rarity, `MaxStackSize`
+  (weapons/mission items 1, Health/Shield 5, Ammo 200),
+  consumable + use effect (+50 HP, +50 shield, +30 reserve
+  rounds), `WeaponData` for weapon items, `ShieldBonus` for
+  shield generators. `Validate()` rejects bad ids, bad stacks,
+  consumable/effect mismatches and weapon items without data.
+- `Source/GalaxyFrontier/Inventory/UGFInventoryComponent.h/.cpp` —
+  ActorComponent on `AGFCharacter`: 24 slots, partial-stack
+  filling, `AddItem` returns the added count (overflow fires
+  `OnInventoryFull`, nothing is dropped), `UseItem` applies
+  the effect first and consumes second (a failed effect never
+  eats the item), `ClearInventory` for save loads.
+- `Source/GalaxyFrontier/Inventory/UGFEquipmentComponent.h/.cpp` —
+  3 slots (Primary / Secondary / Shield Generator). Weapons
+  must be owned and in the combat loadout (no silent spawns);
+  shield generator adds its bonus to `MaxShield` while
+  equipped and clamps current shield on unequip. Equipping
+  never removes the item from the inventory.
+- `Source/GalaxyFrontier/Customization/UGFCharacterCustomizationData.h/.cpp`
+  + `UGFCustomizationManager.h/.cpp` — cosmetic-only profiles
+  (body Male/Female, hairstyle, armour set, helmet,
+  accessories, 4 colours), GameInstance subsystem owning the
+  active profile, lookup by id for save loads. No stat field
+  exists on a profile.
+- `Source/GalaxyFrontier/Vehicles/AGFGroundVehicle.h/.cpp` —
+  Rover RX-7: `UFloatingPawnMovementComponent` (no Chaos
+  dependency), 1800 cm/s, 250 HP own health component,
+  possession-based enter/exit (exit refused above 50 cm/s,
+  driver hidden with collision off while driving).
+- `Source/GalaxyFrontier/Vehicles/AGFSpaceship.h/.cpp` —
+  Starhopper: `TravelToPlanet` validates + unlock-checks, then
+  a 5 s spool-up and a real `OpenLevel` of the planet's level.
+  No space combat in Phase 05.
+- `Source/GalaxyFrontier/World/UGFPlanetDataAsset.h/.cpp` —
+  planet data (gravity 0.3–2.0, weather, level name,
+  recommended level, unlock mission). `IsUnlocked` checks the
+  save's completed missions.
+- `Source/GalaxyFrontier/World/AGFPickupActor.h/.cpp` —
+  `IGFInteractable` pickup: grants via the inventory only,
+  partial pickup allowed, full inventory takes nothing and the
+  pickup stays, respawning pickups return after `RespawnSeconds`
+  (min 5 s).
+- `Source/GalaxyFrontier/Progression/UGFProgressionComponent.h/.cpp` —
+  level/XP on the character: XP to next level = 100 × level,
+  cap 20, mission rewards granted exactly once per mission id
+  (XP + one reward item; full-inventory fallback is a level
+  pickup — see Docs/MISSIONS.md).
+- `Source/GalaxyFrontier/Save/UGFSaveGame.h/.cpp` +
+  `UGFPlayerSaveManager.h/.cpp` — full player save, slot
+  `GF_PlayerSave`, version 1: level/XP, completed missions,
+  inventory, equipment, profile id, planet id, language
+  reference copy. Validation clamps/drops bad data; version-0
+  saves migrate from the Phase 03 `GF_MissionSave` slot;
+  newer-version saves are refused.
+- `Source/GalaxyFrontier/Tests/GFPhase05Test.cpp` — Automation
+  test skeleton, spec values + 25 failure cases (NOT RUN).
+- `Docs/PLANETS.md` — ZERON recap + full NEXUS / VELTRON /
+  ASTRALIS specs (environment, hazards, POIs, unlock chain,
+  gravity, weather). `Docs/EXPANSION.md` — design doc (item
+  table, XP curve, save format, vehicle numbers).
+- `Docs/MISSIONS.md` — Missions 2 ("Signal in the Static",
+  NEXUS, 6+2 stages, 250 XP + `NexusDataCore`) and 3
+  ("The Frozen Vault", VELTRON, 7+2 stages, 400 XP +
+  `VaultAlloy`), reward rules + inventory-full fallback.
+- `Docs/UI-SCREENS.md` — full `WBP_Inventory` and
+  `WBP_CharacterCustomization` specs (was brief/spec-only).
+  `Docs/CHARACTERS.md` — Phase 05 customisation section.
+  `Docs/RELIABILITY.md` — Phase 05 failure tables.
+
+### Changed
+- `AGFCharacter.h/.cpp` — `InventoryComponent`,
+  `EquipmentComponent`, `ProgressionComponent` subobjects +
+  getters; `HandleOpenInventory` is a real implementation now
+  (delegates to `UGFHUDController::ToggleInventory()` — the
+  last Phase 01 stub is gone); `FGFCharacterCustomization`
+  gains `BodyType` + `AccentColour` (slot 2, applied only when
+  the mesh has 3+ slots).
+- `UGFHUDController.h/.cpp` — `InventoryWidgetClass` /
+  `InventoryWidget`, `OpenInventory` / `CloseInventory` /
+  `ToggleInventory` (pauses the game, stops firing, UIOnly
+  input). Pause menu and Inventory never stack — opening one
+  while the other is open is refused, so closing one never
+  resumes a game the other paused.
+- `UGFMissionDataAsset.h` — `CompletionXPReward` (default 100)
+  + `CompletionRewardItem` (null = no item reward).
+
 ## [Phase 04 — Mobile UI & Optimization] — 2026-11-18
 
 ### Added

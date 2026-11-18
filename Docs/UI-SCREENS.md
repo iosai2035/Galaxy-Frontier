@@ -91,16 +91,38 @@ Common rules for all screens:
 
 ## WBP_Inventory
 
-- **Status: spec only — NOT IMPLEMENTED. The inventory backend
-  is Phase 05 (Expansion).** This section exists so the Phase 05
-  work has a target; nothing in Phase 04 opens this screen.
-- `AGFCharacter::HandleOpenInventory` stays a stub that logs
-  "NOT IMPLEMENTED (Phase 05)" — it must NOT open this widget,
-  because there is no inventory data to show.
-- Planned (Phase 05): grid of owned items, equip / use actions,
-  backed by `UGFSaveGame` + weapon pickups. The widget will be
-  parented to `UUserWidget` and will read the inventory from the
-  Phase 05 subsystem, never from hard-coded item lists.
+- **Status: full spec (Phase 05). The backend exists now
+  (`UGFInventoryComponent` + `UGFEquipmentComponent` on
+  `AGFCharacter`); the `.uasset` widget itself is still built
+  in the Editor on macOS.**
+- Parent: `UUserWidget`. Opened by `AGFCharacter::HandleOpenInventory`
+  (OpenInventory action) via `UGFHUDController::ToggleInventory()`.
+  Opening pauses the game (same rule as the Pause menu) and
+  stops firing; closing resumes it. The Pause menu and the
+  Inventory screen never stack — opening one while the other
+  is open is refused (see `UGFHUDController`).
+- Elements: a 24-slot grid (4 rows × 6 columns, the
+  `MaxSlots` cap), one cell per inventory entry showing the
+  item icon (Editor-assigned), name, quantity for stacks, and
+  a rarity-coloured border (rarity is display-only). Below the
+  grid: the selected item's description + Use / Equip buttons.
+  Use is shown only for consumables the player owns; Equip is
+  shown only for weapon / shield-generator items.
+- Data comes from `UGFInventoryComponent::Entries` only — read
+  on construct and on `OnInventoryChanged`. The widget never
+  keeps its own item list and never hard-codes items.
+- Actions: Use calls `UGFInventoryComponent::UseItem(ItemId)`
+  (one unit, effect first); Equip (weapon) calls
+  `UGFEquipmentComponent::EquipWeapon(ItemData, Slot)`; Equip
+  (shield generator) calls `EquipShieldGenerator(ItemData)`.
+  A failed call (full health, wrong loadout) leaves the
+  inventory unchanged and shows the warning line.
+- A 3-row equipment strip at the top shows the equipped
+  Primary / Secondary / Shield Generator with an Unequip
+  button per slot (`UnequipSlot`).
+- The "inventory full" state is shown when `AddItem` returns
+  less than requested (`OnInventoryFull`): the widget shows
+  "Inventory full" and pickups stay in the world.
 
 ## WBP_WeaponSelection
 
@@ -140,19 +162,30 @@ Common rules for all screens:
 
 ## WBP_CharacterCustomization
 
-- **Status: brief spec only — full customisation is Phase 05.**
-  The Phase 04 work is the settings + HUD plumbing only.
-- What exists now (Phase 02): `FGFCharacterCustomization`
-  (SkinTone / HairColour / ArmourTint + material slot indices)
-  applied by `AGFCharacter::ApplyCustomization()` as dynamic
-  material instances. The Phase 04 screen exposes exactly those
-  three colours as pickers, with a live preview on the character
-  mesh (Editor-assigned Skeletal Mesh), and saves the choice
-  into the character's `Customization` struct.
-- What is NOT in this screen: new meshes, hairstyles, armour
-  sets, or any saved customisation profile — those need the
-  Phase 05 save system (`UGFSaveGame`) and authored assets.
-  Do not add controls for them.
+- **Status: full spec (Phase 05). The backend exists now
+  (`UGFCharacterCustomizationData` + `UGFCustomizationManager`);
+  the `.uasset` widget itself is still built in the Editor.**
+- Parent: `UUserWidget`. Opened from the Main Menu (and from
+  the Pause menu). Live preview on the character mesh
+  (Editor-assigned Skeletal Mesh) — changing a control applies
+  it immediately through `UGFCustomizationManager`.
+- Controls: body-type selector (Male / Female — two base bodies,
+  one skeleton); hairstyle list (`Buzz`, `Short`, `Tied`,
+  `Mohawk`); armour-set list (`Scout`, `Vanguard`, `Ranger`);
+  helmet list (`None`, `Visor`, `FullHelm`); accessory toggles
+  (`Visor`, `Backpack`, `Scarf`); four colour pickers (skin /
+  hair / armour / accent). A profile name field + Save button
+  writes the profile as a `UGFCharacterCustomizationData`
+  asset choice; Load lists `AvailableProfiles`.
+- Data comes from `UGFCustomizationManager` only. Selecting a
+  profile calls `SetActiveProfile()`; saving stores the
+  profile id in `UGFSaveGame` (via `UGFPlayerSaveManager`).
+- **Cosmetic only, stated on the screen:** a line under the
+  preview reads "Looks only — customisation never changes
+  combat stats." There is no control that grants a stat.
+- What is NOT in this screen: new meshes (authored in the
+  Editor), purchases, or any real-money control. Do not add
+  them.
 
 ## WBP_LoadingScreen
 

@@ -10,6 +10,8 @@
 #include "Engine/DataAsset.h"
 #include "UGFMissionDataAsset.generated.h"
 
+class UGFItemDataAsset;
+
 USTRUCT(BlueprintType)
 struct FGFObjectiveData
 {
@@ -59,4 +61,15 @@ public:
 	// inventory item itself is Phase 05).
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GF|Mission")
 	FText CompletionRewardText = FText::FromString(TEXT("Power Core recovered — Outpost restored."));
+
+	// Phase 05: experience granted on completion (see
+	// UGFProgressionComponent — XP curve in Docs/EXPANSION.md).
+	// The Lost Power Core grants 150; NEXUS 250; VELTRON 400.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GF|Mission", meta = (ClampMin = "0"))
+	int32 CompletionXPReward = 100;
+
+	// Phase 05: inventory item granted on completion (one unit,
+	// added by UGFProgressionComponent). Null = no item reward.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GF|Mission")
+	TObjectPtr<UGFItemDataAsset> CompletionRewardItem = nullptr;
 };

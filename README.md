@@ -30,6 +30,21 @@ logos or assets copied from other games.
   the `.uasset` widgets themselves are built in the Editor on
   macOS, not in this repo. `HandlePause` is a real implementation
   now; `HandleOpenInventory` stays a Phase 05 stub.
+- **Phase 05 — Expansion: CREATED / REVIEWED.**
+  `UGFInventoryComponent` + `UGFItemDataAsset` (24 slots,
+  stacking, no silent loss), `UGFEquipmentComponent`
+  (Primary / Secondary / Shield Generator),
+  `UGFCharacterCustomizationData` + `UGFCustomizationManager`
+  (cosmetic-only profiles), `AGFGroundVehicle` (Rover RX-7),
+  `AGFSpaceship` (Starhopper — travel is a real level load,
+  no space combat), `UGFPlanetDataAsset` (ZERON / NEXUS /
+  VELTRON / ASTRALIS — full specs in `Docs/PLANETS.md`),
+  two new missions ("Signal in the Static", "The Frozen Vault"),
+  `UGFProgressionComponent` (XP curve 100 × level, cap 20),
+  `UGFSaveGame` + `UGFPlayerSaveManager` (slot
+  `GF_PlayerSave`, version 1, migration from `GF_MissionSave`).
+  `HandleOpenInventory` is a real implementation now — no
+  Phase 01 stub remains.
 - **BUILT: NONE. TESTED: NONE.** Unreal Engine is **not installed** on this
   Linux VM and there is no Xcode / macOS here, so no UE build, no IPA build,
   no signing and no device test has been run. See `Docs/ENVIRONMENT.md`.

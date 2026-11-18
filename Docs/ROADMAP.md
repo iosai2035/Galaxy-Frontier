@@ -99,13 +99,32 @@ network base is built and tested (Phase 06).
   no real iPhone/iPad run — FPS/RAM/thermal columns are empty
   (BUILT: NONE, TESTED: NONE — BLOCKED).
 
-## Phase 05 — Expansion
+## Phase 05 — Expansion ✅ CREATED / REVIEWED (2026-11-18)
 
-- Character customisation, inventory/equipment, ground vehicle,
-  spaceship, planets NEXUS / VELTRON / ASTRALIS, new missions,
-  player progression / SaveGame (`UGFSaveGame`).
-
-## Phase 06 — Multiplayer
+- `UGFInventoryComponent` + `UGFItemDataAsset` (24 slots,
+  stacking, overflow never drops items), `UGFEquipmentComponent`
+  (Primary / Secondary / Shield Generator, +25 MaxShield Mk1),
+  `UGFCharacterCustomizationData` + `UGFCustomizationManager`
+  (cosmetic-only profiles: body, hair, armour, helmet,
+  accessories, 4 colours), `AGFGroundVehicle` (Rover RX-7,
+  1800 cm/s, 250 HP, possession-based),
+  `AGFSpaceship` (Starhopper — travel is a real level load
+  after a 5 s spool-up, no space combat),
+  `UGFPlanetDataAsset` + `Docs/PLANETS.md` (ZERON / NEXUS /
+  VELTRON / ASTRALIS, unlock chain, gravity, weather),
+  `AGFPickupActor` (inventory-granted, respawning pickups),
+  two new missions ("Signal in the Static" on NEXUS, 250 XP;
+  "The Frozen Vault" on VELTRON, 400 XP),
+  `UGFProgressionComponent` (XP curve 100 × level, cap 20,
+  mission rewards once per mission),
+  `UGFSaveGame` + `UGFPlayerSaveManager` (slot `GF_PlayerSave`,
+  version 1, migration from `GF_MissionSave`).
+- `AGFCharacter::HandleOpenInventory` is real now (no Phase 01
+  stub remains). Full UMG specs for `WBP_Inventory` +
+  `WBP_CharacterCustomization` in `Docs/UI-SCREENS.md`.
+- Output: `GalaxyFrontier-Phase-05-Expansion.zip`
+- Exit criteria NOT yet proven: inventory / save / vehicles
+  need an Editor run on macOS (BUILT: NONE, TESTED: NONE).
 
 - Dedicated server, lobby, sessions, matchmaking, replication,
   server-authoritative validation, anti-cheat design. Two-player test

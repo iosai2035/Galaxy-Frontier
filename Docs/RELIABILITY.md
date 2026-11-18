@@ -1,4 +1,4 @@
-# Reliability — Galaxy Frontier (Phases 02–03)
+# Reliability — Galaxy Frontier (Phases 02–05)
 
 Goal: no crashes, no silent failures, no lag from polling, no
 state that can get stuck. Every system below lists its failure
@@ -131,6 +131,60 @@ claimed as tested here (no UE, no device on this Linux VM).
 | Auto quality disabled in Settings | No automatic change at all; manual `SetQuality` still works |
 | Thermal state | Always `Unknown` in this build — never invented; record by hand (see `Docs/DEVICE_TEST_MATRIX.md`) |
 | Draw calls / polygons over budget | Not fixed by this manager — fix the content (HISM, LODs); do not raise the budget |
+
+### Inventory (`UGFInventoryComponent` / `UGFItemDataAsset`) — Phase 05
+| Failure mode | Behaviour |
+|---|---|
+| AddItem with a null item, 0 or negative quantity | Returns 0, nothing changes |
+| Item asset fails `Validate()` | Refused, warning logged, nothing added |
+| Inventory full (24 slots) | Adds 0, fires `OnInventoryFull`, nothing is dropped |
+| Stack over `MaxStackSize` | Split across stacks/slots; never exceeds the cap |
+| UseItem at full health/shield, or with no weapon (ammo) | Returns false, the unit is NOT consumed |
+| UseItem on a non-consumable or unowned item | Returns false, nothing changes |
+| Save with an invalid inventory entry (null item, quantity ≤ 0) | Entry dropped on load with a warning |
+
+### Equipment (`UGFEquipmentComponent`) — Phase 05
+| Failure mode | Behaviour |
+|---|---|
+| Equip a weapon the player does not own | Returns false, loadout unchanged |
+| Equip a weapon whose class is not in `WeaponClasses` | Returns false with a setup warning; nothing is spawned |
+| Equip a second shield generator | Returns false; MaxShield raised only once |
+| Unequip shield generator | Bonus removed, current shield clamped to the new max |
+| Saved equipped id missing from the loaded inventory | Slot left empty with a warning, never a crash |
+
+### Progression (`UGFProgressionComponent`) — Phase 05
+| Failure mode | Behaviour |
+|---|---|
+| AddXP ≤ 0 | Returns 0, nothing changes |
+| AddXP at level 20 (cap) | Returns 0, XP stays 0 |
+| Mission reward broadcast twice | Granted once — the second call returns false |
+| Mission completed is not the subsystem's current mission | Reward not granted, warning logged |
+| `SetProgress` with level > 20 or XP ≥ needed | Returns false, progress unchanged |
+
+### Save (`UGFSaveGame` / `UGFPlayerSaveManager`) — Phase 05
+| Failure mode | Behaviour |
+|---|---|
+| Save version newer than this build | `Validate()` returns false, load refused, current progress kept |
+| Save version 0 (pre-Phase 05) | Migrated: completed mission imported once from `GF_MissionSave` |
+| Corrupt level/XP in the save | Clamped to level 1 / XP 0 with a warning |
+| LoadGame with no player pawn yet | Returns false; the caller retries after spawn |
+| No save slot at all | `LoadGame` returns false, `HasSaveGame` is false — not an error |
+
+### Vehicles (`AGFGroundVehicle` / `AGFSpaceship`) — Phase 05
+| Failure mode | Behaviour |
+|---|---|
+| Enter an occupied or destroyed rover | Returns false, possession unchanged |
+| Exit while moving (> 50 cm/s) | Returns false, driver stays hidden in the vehicle |
+| Travel to a locked planet | Returns false, no spool-up timer starts |
+| Travel while already travelling | Returns false |
+| Travel to a planet with no level name | Asset fails `Validate()`, travel refused |
+
+### Pickups (`AGFPickupActor`) — Phase 05
+| Failure mode | Behaviour |
+|---|---|
+| Interact with a full inventory | Nothing taken, pickup stays, prompt hidden |
+| Pickup with no ItemData | Never available, warning at BeginPlay |
+| EndPlay while a respawn timer runs | Timer cleared, no callback after destruction |
 
 ## Performance / lag guards
 

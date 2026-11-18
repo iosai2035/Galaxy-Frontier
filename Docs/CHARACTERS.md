@@ -65,13 +65,23 @@ character in this game is an original design, authored from scratch.
 
 ## Customisation hooks (code, Phases 02/05)
 
-- `FGFCharacterCustomization` (`AGFCharacter.h`): `SkinTone`,
-  `HairColour`, `ArmourTint`, skin/armour slot indices.
+- `FGFCharacterCustomization` (`AGFCharacter.h`): `BodyType`
+  (Male/Female), `SkinTone`, `HairColour`, `ArmourTint`,
+  `AccentColour` (Phase 05, metal/tech slot 2), skin/armour
+  slot indices.
 - `AGFCharacter::ApplyCustomization()` creates dynamic material
-  instances per slot and sets `SkinTone` / `ArmourTint`.
-  Full customisation UI (face, hair, clothes, helmet, armour,
-  colours, accessories) is Phase 05 — the hooks exist now so
-  Phase 05 does not rewrite the character.
+  instances per slot and sets `SkinTone` / `ArmourTint` /
+  `AccentColour` (slot 2 only when the mesh has 3+ slots).
+- **Phase 05 — full customisation:** profiles are
+  `UGFCharacterCustomizationData` assets (body, hairstyle,
+  armour set, helmet, accessories, colours) owned by
+  `UGFCustomizationManager`; the active profile id is stored
+  in `UGFSaveGame`. The screen is `WBP_CharacterCustomization`
+  (full spec in `Docs/UI-SCREENS.md`). Mesh swaps (hair /
+  armour / helmet / accessories) are Editor-side — the
+  Animation Blueprint reads the profile's ids and swaps the
+  assigned meshes. **Cosmetic only:** no profile field affects
+  any stat (see `Docs/EXPANSION.md`).
 
 ## What is BLOCKED (honest)
 

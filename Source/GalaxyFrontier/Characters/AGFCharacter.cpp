@@ -1,9 +1,10 @@
-// Galaxy Frontier — AGFCharacter.cpp (Phases 01-04)
+// Galaxy Frontier — AGFCharacter.cpp (Phases 01-05)
 // Third-person movement, camera and Enhanced Input (Phase 01).
 // Combat handlers delegate to UGFCombatComponent (Phase 02, real),
 // Interact delegates to UGFInteractionComponent (Phase 03, real),
-// Pause delegates to UGFHUDController (Phase 04, real).
-// OpenInventory remains a stub for Phase 05.
+// Pause delegates to UGFHUDController (Phase 04, real),
+// OpenInventory delegates to UGFHUDController (Phase 05, real).
+// Inventory / equipment / progression components are Phase 05.
 
 #include "AGFCharacter.h"
 
@@ -18,7 +19,10 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "InputActionValue.h"
+#include "Inventory/UGFEquipmentComponent.h"
+#include "Inventory/UGFInventoryComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Progression/UGFProgressionComponent.h"
 #include "UI/UGFHUDController.h"
 #include "World/UGFInteractionComponent.h"
 
@@ -55,12 +59,16 @@ AGFCharacter::AGFCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->FieldOfView = CameraFOV;
 
-	// Phase 02/03/04 components. Created here so they are never null in
-	// game; every use site still null-checks them (Docs/RELIABILITY.md).
+	// Phase 02/03/04/05 components. Created here so they are never
+	// null in game; every use site still null-checks them
+	// (Docs/RELIABILITY.md).
 	HealthComponent = CreateDefaultSubobject<UGFHealthComponent>(TEXT("HealthComponent"));
 	CombatComponent = CreateDefaultSubobject<UGFCombatComponent>(TEXT("CombatComponent"));
 	InteractionComponent = CreateDefaultSubobject<UGFInteractionComponent>(TEXT("InteractionComponent"));
 	HUDController = CreateDefaultSubobject<UGFHUDController>(TEXT("HUDController"));
+	InventoryComponent = CreateDefaultSubobject<UGFInventoryComponent>(TEXT("InventoryComponent"));
+	EquipmentComponent = CreateDefaultSubobject<UGFEquipmentComponent>(TEXT("EquipmentComponent"));
+	ProgressionComponent = CreateDefaultSubobject<UGFProgressionComponent>(TEXT("ProgressionComponent"));
 }
 
 void AGFCharacter::ApplyCustomization(const FGFCharacterCustomization& NewCustomization)
@@ -87,6 +95,19 @@ void AGFCharacter::ApplyCustomization(const FGFCharacterCustomization& NewCustom
 	if (ArmourMID)
 	{
 		ArmourMID->SetVectorParameterValue(TEXT("ArmourTint"), Customization.ArmourTint);
+	}
+	// Phase 05: accent colour on the metal/tech slot (slot 2) —
+	// visor trim, lights, edge details. Slot 2 is the metal/tech
+	// slot by the material convention in Docs/CHARACTERS.md.
+	// A mesh with fewer than 3 slots simply gets no accent pass.
+	if (Mesh->GetNumMaterials() > 2)
+	{
+		UMaterialInstanceDynamic* AccentMID = Mesh->CreateDynamicMaterialInstance(
+			2, Mesh->GetMaterial(2));
+		if (AccentMID)
+		{
+			AccentMID->SetVectorParameterValue(TEXT("AccentColour"), Customization.AccentColour);
+		}
 	}
 	ApplyForcedLOD();
 }
@@ -366,7 +387,12 @@ void AGFCharacter::HandleSwitchWeapon()
 
 void AGFCharacter::HandleOpenInventory()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleOpenInventory — NOT IMPLEMENTED (Phase 05 Expansion)."));
+	if (!HUDController)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandleOpenInventory — no HUDController."));
+		return;
+	}
+	HUDController->ToggleInventory();
 }
 
 void AGFCharacter::HandlePause()
