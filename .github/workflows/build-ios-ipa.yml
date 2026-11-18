@@ -1,0 +1,258 @@
+# Build iOS IPA (SideStore, unsigned) — Galaxy Frontier
+#
+# STATUS: NOT BUILT / NOT TESTED — 2026-11-18.
+# This workflow has never run. Do not claim it works until a real run
+# on a macOS runner succeeds and the .ipa installs via SideStore.
+#
+# What it is for:
+#   Produce an UNSIGNED .ipa for sideloading. SideStore re-signs it on
+#   the phone with the user's own free Apple ID (7-day signature,
+#   3-app limit). No paid Apple Developer certificate, no App Store,
+#   no secrets in this file.
+#
+# Runner choice — READ THIS BEFORE CHANGING IT:
+#   * macos-14 is RETIRED. GitHub removed macos-14 / macos-14-large /
+#     macos-14-xlarge on 2026-11-02 (actions/runner-images #13518).
+#     A job naming macos-14 now fails instead of running. The original
+#     task instruction to use macos-14 is therefore obsolete.
+#   * This workflow uses macos-15 (pinned, supported): macOS Sequoia,
+#     Apple Silicon arm64, 3 vCPU (M1), 7 GB RAM, 14 GB SSD — verified
+#     against the official GitHub-hosted runners reference on
+#     2026-11-18 (docs.github.com/en/actions/reference/runners/
+#     github-hosted-runners). macos-15 ships Xcode 16.x, which matches
+#     UE 5.5 (Xcode 16.1+, iOS 15+, macOS Sequoia 15+).
+#   * macos-26 / macos-latest (now macOS 26) is deliberately NOT used:
+#     UE 5.5's Apple_SDK.json caps the iOS SDK version it accepts, and
+#     Xcode 26 / iOS 26 SDK is a known mismatch for UE 5.5.
+#
+# THE DISK PROBLEM — why this workflow is expected to FAIL on a
+# standard runner, and fails fast on purpose:
+#   * A standard macOS runner has 14 GB of SSD in total, and the
+#     pre-installed Xcode/toolchain already occupies most of it.
+#   * Unreal Engine 5.5 is ~15 GB to download and 40-60 GB installed
+#     (Core Components alone are listed at ~64 GB in the installer;
+#     + ~5 GB for the iOS target platform; totals of 40-100 GB are
+#     reported depending on options).
+#   * GitHub Actions cache is capped at 10 GB per repository, so the
+#     engine CANNOT be cached between runs either.
+#   * Therefore a standard runner cannot hold UE 5.5 + the project +
+#     cook/stage output at the same time. This workflow checks for a
+#     pre-installed engine and for free disk FIRST, and stops with a
+#     clear error instead of burning a 6-hour run downloading the
+#     engine. See Docs/BUILD-IPA-SIDESTORE.md for the two realistic
+#     routes: (A) a larger runner with more disk, or (B) a self-hosted
+#     Mac with UE 5.5 pre-installed.
+#
+# Triggers:
+#   * workflow_dispatch — the intended way to run it (choose
+#     Development or Shipping).
+#   * push to main, but ONLY when this workflow file itself changes —
+#     so an ordinary code push does not start a doomed 6-hour build.
+#
+# Cost (public repo iosai2035/Galaxy-Frontier):
+#   Standard GitHub-hosted runners are free and unlimited on public
+#   repositories. On a private repo the same macOS minutes cost
+#   $0.062/min (about 10.3x Linux) and the Free plan's $12/month of
+#   included compute is ~193 macOS minutes. Job limit: 6 hours.
+#   Artifact storage on the Free plan is 500 MB shared — an Unreal
+#   IPA (typically 150 MB-2 GB) may exceed it; retention is 7 days.
+
+name: Build iOS IPA (SideStore, unsigned)
+
+# "on" is quoted: unquoted `on:` parses as boolean True in YAML 1.1
+# parsers (PyYAML), which breaks tooling that reads this file.
+"on":
+  workflow_dispatch:
+    inputs:
+      clientconfig:
+        description: "Build configuration"
+        required: true
+        default: "Development"
+        type: choice
+        options:
+          - Development
+          - Shipping
+      engine_dir:
+        description: "Absolute path to a pre-installed UE 5.5 engine on the runner (empty = UE_ENGINE_DIR variable, else /Users/Shared/Epic Games/UE_5.5)"
+        required: false
+        default: ""
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-ios-ipa.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa
+  cancel-in-progress: false
+
+env:
+  PROJECT_NAME: GalaxyFrontier
+  UE_VERSION: "5.5"
+  BUNDLE_ID: com.iosai2035.GalaxyFrontier
+  CLIENTCONFIG: ${{ inputs.clientconfig || 'Development' }}
+
+jobs:
+  build-ios-ipa:
+    name: Build unsigned iOS IPA
+    runs-on: macos-15
+    timeout-minutes: 330
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pre-flight — runner, Xcode, disk
+        run: |
+          set -euo pipefail
+          echo "macOS: $(sw_vers -productName) $(sw_vers -productVersion) ($(uname -m))"
+          echo "--- Xcode ---"
+          ls -d /Applications/Xcode*.app 2>/dev/null || echo "No Xcode*.app found under /Applications"
+          xcodebuild -version || echo "xcodebuild not on PATH"
+          echo "--- Disk ---"
+          df -h /
+          python3 -c "import shutil; f=shutil.disk_usage('/').free/1024**3; print(f'free_gb={f:.1f}')"
+          echo "--- Memory / CPU ---"
+          sysctl -n hw.memsize | awk '{print "RAM bytes:", $1}'
+          sysctl -n hw.ncpu | awk '{print "CPUs:", $1}'
+
+      - name: Select Xcode 16.x
+        run: |
+          set -euo pipefail
+          XCODE_APP="$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort | tail -1 || true)"
+          if [ -z "$XCODE_APP" ]; then
+            echo "::error::No Xcode 16.x found under /Applications. UE 5.5 needs Xcode 16.1+; see Docs/BUILD-IPA-SIDESTORE.md"
+            ls /Applications | grep -i xcode || true
+            exit 1
+          fi
+          echo "Using $XCODE_APP"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache DerivedDataCache only (engine caching is NOT feasible)
+        uses: actions/cache@v4
+        with:
+          # The UE 5.5 ENGINE is deliberately NOT cached here: it is
+          # 40-60 GB and the GitHub Actions cache cap is 10 GB per
+          # repository, so an engine cache entry could never hold it
+          # and would only waste a run. This step caches only the
+          # project's small DerivedDataCache, which is actually
+          # cacheable. A missing/partial cache is not a failure.
+          path: DerivedDataCache
+          key: ddc-ue5.5-macos-15-${{ hashFiles('GalaxyFrontier.uproject', 'Config/*.ini') }}
+          restore-keys: |
+            ddc-ue5.5-macos-15-
+
+      - name: Resolve UE 5.5 engine (fail fast if missing)
+        id: engine
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.engine_dir }}" ]; then
+            UE_DIR="${{ inputs.engine_dir }}"
+          elif [ -n "${{ vars.UE_ENGINE_DIR }}" ]; then
+            UE_DIR="${{ vars.UE_ENGINE_DIR }}"
+          else
+            UE_DIR="/Users/Shared/Epic Games/UE_5.5"
+          fi
+          echo "UE_DIR=$UE_DIR" >> "$GITHUB_ENV"
+          echo "ue_dir=$UE_DIR" >> "$GITHUB_OUTPUT"
+          if [ ! -x "$UE_DIR/Engine/Build/BatchFiles/RunUAT.sh" ]; then
+            echo "::error::UE 5.5 engine NOT FOUND at $UE_DIR (no Engine/Build/BatchFiles/RunUAT.sh)."
+            echo "This workflow cannot download UE: the Epic Games Launcher needs an interactive Epic account login, and the UE source on GitHub (EpicGames/UnrealEngine) is private — it requires an Epic account linked to GitHub + EULA acceptance. A standard 14 GB runner also cannot hold a 40-60 GB engine."
+            echo "Fix: run this workflow on a larger runner or a self-hosted Mac with UE 5.5 pre-installed at that path, or set the UE_ENGINE_DIR repository variable. See Docs/BUILD-IPA-SIDESTORE.md."
+            exit 1
+          fi
+          echo "Engine found: $UE_DIR"
+          FREE_GB="$(python3 -c "import shutil; print(f'{shutil.disk_usage(chr(47)).free / 1024 ** 3:.1f}')")"
+          echo "Free disk before cook: ${FREE_GB} GB"
+          python3 -c "import shutil, sys; sys.exit(0 if shutil.disk_usage('/').free / 1024 ** 3 >= 20 else 1)" || {
+            echo "::error::Less than 20 GB free before cooking/staging. Free space and retry."
+            exit 1
+          }
+
+      - name: Generate Xcode project files
+        run: |
+          set -euo pipefail
+          "$UE_ENGINE_DIR/Engine/Build/BatchFiles/Mac/GenerateProjectFiles.sh" \
+            -project="$GITHUB_WORKSPACE/GalaxyFrontier.uproject" -game
+
+      - name: Build, cook, stage and package iOS (unsigned)
+        run: |
+          set -euo pipefail
+          # -NoCodeSign is the documented UAT flag for an unsigned
+          # package (see Engine/Source/Programs/AutomationTool
+          # BuildCookRunArgs in the UE source). No certificate, no
+          # provisioning profile and no Apple ID are used here;
+          # SideStore applies the user's own personal signature later.
+          "$UE_ENGINE_DIR/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun \
+            -project="$GITHUB_WORKSPACE/GalaxyFrontier.uproject" \
+            -noP4 -nocompileeditor \
+            -platform=IOS -clientconfig="$CLIENTCONFIG" \
+            -cook -build -stage -pak -archive \
+            -archivedirectory="$GITHUB_WORKSPACE/Build/IOS" \
+            -package -NoCodeSign -nodebuginfo -utf8output
+          echo "--- Build output ---"
+          find "$GITHUB_WORKSPACE/Build/IOS" -maxdepth 4 -type f \( -name '*.ipa' -o -name '*.app' \) -print || true
+          du -sh "$GITHUB_WORKSPACE/Build/IOS" || true
+
+      - name: Locate or assemble the unsigned .ipa
+        id: ipa
+        run: |
+          set -euo pipefail
+          IPA="$(find "$GITHUB_WORKSPACE/Build" -name '*.ipa' -type f 2>/dev/null | head -1 || true)"
+          if [ -n "$IPA" ]; then
+            echo "Found .ipa from UAT: $IPA"
+          else
+            PAYLOAD_DIR="$(find "$GITHUB_WORKSPACE/Build" -type d -name Payload 2>/dev/null | head -1 || true)"
+            if [ -z "$PAYLOAD_DIR" ]; then
+              echo "::error::No .ipa and no Payload/*.app found under Build/. The package step did not produce an iOS app bundle."
+              find "$GITHUB_WORKSPACE/Build" -maxdepth 5 -print | head -100 || true
+              exit 1
+            fi
+            # An .ipa is a zip containing Payload/<App>.app at the top
+            # level. Re-zip the staged Payload as an unsigned .ipa.
+            IPA="$GITHUB_WORKSPACE/Build/IOS/GalaxyFrontier-unsigned.ipa"
+            mkdir -p "$(dirname "$IPA")"
+            (cd "$(dirname "$PAYLOAD_DIR")" && zip -r -q "$IPA" Payload)
+            echo "Assembled unsigned .ipa from Payload: $IPA"
+          fi
+          echo "ipa_path=$IPA" >> "$GITHUB_OUTPUT"
+          ls -lh "$IPA"
+          stat -f %z "$IPA" 2>/dev/null || stat -c %s "$IPA"
+          # SideStore needs the file to be a valid zip with Payload/ at top level.
+          unzip -l "$IPA" | head -20
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: galaxy-frontier-ios-unsigned-ipa
+          path: ${{ steps.ipa.outputs.ipa_path }}
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: galaxy-frontier-ios-build-logs
+          path: |
+            Build/IOS/**/*.log
+            Saved/Logs/*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "## Galaxy Frontier — iOS IPA build"
+            echo ""
+            echo "- Status: **NOT TESTED until this run is green and the .ipa installs via SideStore.**"
+            echo "- Runner: macos-15, config: $CLIENTCONFIG, bundle ID: $BUNDLE_ID"
+            echo "- IPA: \`${{ steps.ipa.outputs.ipa_path }}\`"
+            echo "- This .ipa is UNSIGNED. SideStore re-signs it on the phone with your own free Apple ID (7-day signature, 3-app limit)."
+            echo "- Do not share the .ipa as a finished game: Phases 00-01 contain no playable map or mission yet."
+          } >> "$GITHUB_STEP_SUMMARY"
