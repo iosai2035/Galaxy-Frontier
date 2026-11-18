@@ -1,8 +1,9 @@
-// Galaxy Frontier — AGFCharacter.cpp (Phases 01-03)
+// Galaxy Frontier — AGFCharacter.cpp (Phases 01-04)
 // Third-person movement, camera and Enhanced Input (Phase 01).
 // Combat handlers delegate to UGFCombatComponent (Phase 02, real),
-// Interact delegates to UGFInteractionComponent (Phase 03, real).
-// OpenInventory / Pause remain stubs for Phases 05 / 04.
+// Interact delegates to UGFInteractionComponent (Phase 03, real),
+// Pause delegates to UGFHUDController (Phase 04, real).
+// OpenInventory remains a stub for Phase 05.
 
 #include "AGFCharacter.h"
 
@@ -18,6 +19,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "InputActionValue.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UI/UGFHUDController.h"
 #include "World/UGFInteractionComponent.h"
 
 AGFCharacter::AGFCharacter()
@@ -53,11 +55,12 @@ AGFCharacter::AGFCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->FieldOfView = CameraFOV;
 
-	// Phase 02/03 components. Created here so they are never null in
+	// Phase 02/03/04 components. Created here so they are never null in
 	// game; every use site still null-checks them (Docs/RELIABILITY.md).
 	HealthComponent = CreateDefaultSubobject<UGFHealthComponent>(TEXT("HealthComponent"));
 	CombatComponent = CreateDefaultSubobject<UGFCombatComponent>(TEXT("CombatComponent"));
 	InteractionComponent = CreateDefaultSubobject<UGFInteractionComponent>(TEXT("InteractionComponent"));
+	HUDController = CreateDefaultSubobject<UGFHUDController>(TEXT("HUDController"));
 }
 
 void AGFCharacter::ApplyCustomization(const FGFCharacterCustomization& NewCustomization)
@@ -228,7 +231,9 @@ void AGFCharacter::HandleLook(const FInputActionValue& Value)
 	}
 
 	AddControllerYawInput(LookVector.X * LookSensitivity);
-	AddControllerPitchInput(LookVector.Y * LookSensitivity);
+	// Phase 04: pitch inversion is a player setting
+	// (UGFSettingsManager applies it to bInvertLookPitch).
+	AddControllerPitchInput(LookVector.Y * LookSensitivity * (bInvertLookPitch ? -1.0f : 1.0f));
 }
 
 void AGFCharacter::HandleJump()
@@ -267,6 +272,18 @@ void AGFCharacter::HandleAimStarted()
 void AGFCharacter::HandleAimCompleted()
 {
 	bIsAiming = false;
+	UpdateMovementSpeed();
+}
+
+void AGFCharacter::SetAiming(bool bNewAiming)
+{
+	bIsAiming = bNewAiming;
+	UpdateMovementSpeed();
+}
+
+void AGFCharacter::SetSprinting(bool bNewSprinting)
+{
+	bIsSprinting = bNewSprinting;
 	UpdateMovementSpeed();
 }
 
@@ -354,5 +371,10 @@ void AGFCharacter::HandleOpenInventory()
 
 void AGFCharacter::HandlePause()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandlePause — NOT IMPLEMENTED (Phase 04 Mobile UI)."));
+	if (!HUDController)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GF] AGFCharacter::HandlePause — no HUDController."));
+		return;
+	}
+	HUDController->TogglePause();
 }

@@ -49,3 +49,29 @@ measurement. No device is promised 60 fps.
 - If a High-profile device throttles (heat) during a 15-minute
   session, its profile is downgraded — sustained FPS counts, not
   a 30-second peak.
+
+## Phase 04 — measurement protocol (2026-11-18)
+
+- In-game diagnostics: enable Settings `bShowDiagnostics` — the HUD
+  shows measured avg FPS (EMA), window-min FPS, used RAM in MB and
+  the live quality tier, with "(auto-lowered)" when
+  `UGFPerformanceManager` stepped below the chosen quality. It shows
+  **no** draw-call / polygon numbers — those come from the Editor
+  (`stat RHI`, Unreal Insights) on the macOS build machine.
+- Thermal state: the in-game field is `Unknown` in this build
+  (the iOS `NSProcessInfo.thermalState` reader is NOT IMPLEMENTED).
+  Record temperature by hand / Xcode Instruments during the
+  15-minute session, using these states: Nominal / Fair / Serious /
+  Critical. Never copy the in-game "Unknown" into this table as a
+  measurement.
+- Session: 15 minutes of play on `L_ZERON_Prototype` (combat +
+  mission stages), Development build via the SideStore workflow.
+  Record avg FPS, 1% low FPS, RAM, thermal state, load time,
+  crashes, touch issues, build version, date, tester.
+- Auto-quality check: on a device that cannot hold its tier, the
+  live quality must step down exactly once per 5 s of low FPS,
+  never oscillate, and never rise above the quality chosen in
+  Settings — see `Docs/PERFORMANCE.md` (hysteresis) and the
+  failure cases in `GFPhase04Test.cpp`.
+- All FPS / RAM / Temp cells below are still empty — no device
+  run has happened yet. Fill them only from a real run.

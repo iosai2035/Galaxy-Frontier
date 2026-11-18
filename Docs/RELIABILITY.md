@@ -95,6 +95,42 @@ claimed as tested here (no UE, no device on this Linux VM).
 | Material slot out of range | Warning, material not applied |
 | Forced LOD out of range | Clamped to the mesh's LOD count |
 | No Combat / Interaction component | Input handler logs a warning and returns |
+| No HUDController | `HandlePause` logs a warning and returns; the game is not paused (a missing component is a setup error, visible in the log) |
+
+### HUD (`UGFHUDController` / `UGFMobileHUDWidget`) — Phase 04
+| Failure mode | Behaviour |
+|---|---|
+| No `HUDWidgetClass` assigned | `CreateHUD` returns false, retries 10× at 0.5 s, then warns and stops; game keeps running |
+| No player controller at BeginPlay | Retry timer (0.5 s, max 10) instead of a crash |
+| No Health / Combat / Mission component | That HUD section stays empty, warning logged; other sections still work |
+| Weapon switched mid-magazine | Ammo delegates rebind to the new weapon; the old weapon never updates the HUD again |
+| Fire held, then pause | `StopFire()` is called on pause; no shot fires while paused |
+| Player dies | `OnDeath` stops firing, shows Game Over widget when assigned |
+| Pause with no `PauseWidgetClass` | Game still pauses (input UIOnly, `SetGamePaused(true)`); no menu shown, warning logged |
+| Widget created late / rebound | `RefreshAll()` pulls every value once — no waiting for the next change event |
+| HUD widget name mismatch in Blueprint | `BindWidgetOptional` leaves it null; the missing element is logged, the rest works |
+
+### Settings (`UGFSettingsManager` / `UGFSettingsSaveGame`) — Phase 04
+| Failure mode | Behaviour |
+|---|---|
+| No save on first run | Defaults load, applied, saved on first change |
+| Save slot holds a non-settings object | Warning, defaults used |
+| Save fails (disk full) | `SaveSettings()` returns false; in-memory settings stay valid |
+| Sensitivity NaN / 99 | NaN rejected (returns false); 99 clamped to 5.0 |
+| Language "xx" | Setter returns false, nothing changes |
+| Corrupt / out-of-range stored value | `ValidateSettings()` clamps / resets to "ar" / Medium |
+| No player character yet | Camera apply is a no-op; applied when the character spawns |
+
+### Performance (`UGFPerformanceManager`) — Phase 04
+| Failure mode | Behaviour |
+|---|---|
+| No world at subsystem Initialize | Sampling starts lazily via `StartSampling()` from the HUD controller |
+| FPS below target for < 5 s | No step-down (hysteresis threshold not reached) |
+| FPS oscillating around the target | No change — dead band + 10 s cooldown hold the tier |
+| FPS high for 10 s | Steps up one tier, never above the user's chosen quality |
+| Auto quality disabled in Settings | No automatic change at all; manual `SetQuality` still works |
+| Thermal state | Always `Unknown` in this build — never invented; record by hand (see `Docs/DEVICE_TEST_MATRIX.md`) |
+| Draw calls / polygons over budget | Not fixed by this manager — fix the content (HISM, LODs); do not raise the budget |
 
 ## Performance / lag guards
 

@@ -19,6 +19,7 @@ class UInputAction;
 class UGFHealthComponent;
 class UGFCombatComponent;
 class UGFInteractionComponent;
+class UGFHUDController;
 struct FInputActionValue;
 
 // Customisation applied to the character's materials (Phase 02/05).
@@ -105,6 +106,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "GF|State")
 	bool bIsAiming = false;
 
+	// Phase 04: touch look pitch inversion, applied by
+	// UGFSettingsManager::ApplyCameraSettings(). When true,
+	// dragging up looks down.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Camera")
+	bool bInvertLookPitch = false;
+
 	// --- Components ---
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -123,6 +130,12 @@ public:
 	// Phase 03: interaction. Created in the constructor.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|World")
 	TObjectPtr<UGFInteractionComponent> InteractionComponent;
+
+	// Phase 04: UI bridge (UGFHUDController). Created in the
+	// constructor; owns the HUD / Pause / Game Over widgets and
+	// binds the gameplay delegates for them. Never null in game.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GF|UI")
+	TObjectPtr<UGFHUDController> HUDController;
 
 	// --- Realistic-character hooks (Docs/CHARACTERS.md) ---
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GF|Character")
@@ -149,6 +162,19 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "GF|World")
 	UGFInteractionComponent* GetInteractionComponent() const { return InteractionComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "GF|UI")
+	UGFHUDController* GetHUDController() const { return HUDController; }
+
+	// Phase 04: touch-button state setters. The HUD buttons call
+	// these (the keyboard handlers set the same flags directly).
+	// They update the movement speed, so aiming still slows the
+	// character to WalkSpeed — setting bIsAiming directly would not.
+	UFUNCTION(BlueprintCallable, Category = "GF|Character")
+	void SetAiming(bool bNewAiming);
+
+	UFUNCTION(BlueprintCallable, Category = "GF|Character")
+	void SetSprinting(bool bNewSprinting);
 
 	// --- Enhanced Input (assets created in the Editor — see Docs/INPUT.md) ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GF|Input")
@@ -204,9 +230,10 @@ protected:
 
 	// Input handlers — Fire / Reload / SwitchWeapon implemented in
 	// Phase 02 (delegated to UGFCombatComponent), Interact in Phase 03
-	// (delegated to UGFInteractionComponent). OpenInventory / Pause
-	// remain stubs for Phases 05 / 04 — each logs a warning and does
-	// nothing else, no fake behaviour is simulated.
+	// (delegated to UGFInteractionComponent), Pause in Phase 04
+	// (delegated to UGFHUDController). OpenInventory remains a stub
+	// for Phase 05 — it logs a warning and does nothing else, no
+	// fake behaviour is simulated.
 	void HandleFireStarted();
 	void HandleFireCompleted();
 	void HandleReload();

@@ -19,6 +19,17 @@ logos or assets copied from other games.
   subsystem, objectives, data asset, save, interaction system,
   planet ZERON spec, mission "The Lost Power Core" (9 stages).
   `Interact` is a real implementation now.
+- **Phase 04 — Mobile UI & Optimization: CREATED / REVIEWED.**
+  `UGFHUDController` (event-driven HUD bridge + pause),
+  `UGFMobileHUDWidget` (C++ base for `WBP_MobileHUD`),
+  `UGFSettingsSaveGame` + `UGFSettingsManager` (slot
+  `GF_SettingsSave`, 20 languages, default "ar"),
+  `UGFPerformanceManager` (0.5 s sampling, hysteresis
+  auto-quality, budgets in `Docs/PERFORMANCE.md`). Full UMG
+  specs in `Docs/MOBILE-HUD.md` + `Docs/UI-SCREENS.md` —
+  the `.uasset` widgets themselves are built in the Editor on
+  macOS, not in this repo. `HandlePause` is a real implementation
+  now; `HandleOpenInventory` stays a Phase 05 stub.
 - **BUILT: NONE. TESTED: NONE.** Unreal Engine is **not installed** on this
   Linux VM and there is no Xcode / macOS here, so no UE build, no IPA build,
   no signing and no device test has been run. See `Docs/ENVIRONMENT.md`.
@@ -66,8 +77,11 @@ GalaxyFrontier/
       AI/            AGFEnemyCharacter, AGFEnemyAIController, UGFEnemyHealthComponent (Phase 02)
       Missions/      UGFMissionSubsystem, UGFObjectiveComponent, UGFMissionDataAsset, UGFMissionSaveGame (Phase 03)
       World/         IGFInteractable, UGFInteractionComponent, AGFInteractableActor (Phase 03)
+      UI/            UGFHUDController, UGFMobileHUDWidget (Phase 04)
+      Settings/      UGFSettingsSaveGame, UGFSettingsManager (Phase 04)
+      Performance/   UGFPerformanceManager (Phase 04)
       Tests/         Automation test skeletons (NOT RUN — no UE here)
-  Content/           README only in Phases 00-03; no fake .uasset files
+  Content/           README only in Phases 00-04; no fake .uasset files
   Docs/              Roadmap, quality, device matrix, environment, reports
 ```
 
@@ -81,7 +95,10 @@ GalaxyFrontier/
   mission "The Lost Power Core" (9 stages), interaction system.
   Done (CREATED / REVIEWED, not built/tested). The level itself is
   an Editor asset, not a file in this repo.
-- **04 Mobile UI & Optimization** — full UMG, settings, performance.
+- **04 Mobile UI & Optimization** — full UMG specs, settings,
+  performance. Done (CREATED / REVIEWED, not built/tested).
+  The widgets are Editor assets, not files in this repo; device
+  testing (FPS/RAM/thermal) is still BLOCKED on a Mac + iPhone/iPad.
 - **05 Expansion** — customisation, inventory, vehicles, ships, planets.
 - **06 Multiplayer** — dedicated server, lobby, sessions, Battle Royale
   (only after the network base is built and tested).

@@ -3,6 +3,92 @@
 All notable changes, per phase. Statuses: CREATED / REVIEWED / BUILT /
 TESTED / BLOCKED / NOT IMPLEMENTED (see Docs/QUALITY.md).
 
+## [Phase 04 — Mobile UI & Optimization] — 2026-11-18
+
+### Added
+- `Source/GalaxyFrontier/UI/UGFHUDController.h/.cpp` — event-driven
+  HUD bridge on `AGFCharacter`: binds health / shield / ammo /
+  weapon-switched / mission / interaction delegates and
+  re-broadcasts them for the widgets (no per-frame polling),
+  creates the HUD widget (10× 0.5 s retry if the player
+  controller is not ready), `TogglePause` / `OpenPauseMenu` /
+  `ClosePauseMenu` (`SetGamePaused`, `StopFire()` on pause,
+  input mode UIOnly/GameOnly), Game Over + Mission Complete
+  widgets, `RefreshAll()` one-shot pull.
+- `Source/GalaxyFrontier/UI/UGFMobileHUDWidget.h/.cpp` — C++
+  base class for `WBP_MobileHUD` (BindWidgetOptional names in
+  `Docs/MOBILE-HUD.md`): health/shield bars + "87 / 100" text,
+  ammo "24 / 120", weapon name, objective text, interact prompt
+  (button hidden when empty), diagnostics line, Fire/Aim/Jump/
+  Sprint/Interact/Reload/SwitchWeapon/Pause button handlers.
+- `Source/GalaxyFrontier/Settings/UGFSettingsSaveGame.h/.cpp` +
+  `UGFSettingsManager.h/.cpp` — GameInstance subsystem, save
+  slot `GF_SettingsSave`: camera sensitivity 0.1–5.0 (default
+  1.0), invert pitch, button scale 0.5–2.0, joystick side +
+  anchor 0.05–0.95, graphics Low/Medium/High (default Medium),
+  auto quality (default on), volumes 0–1, language (20 codes,
+  default "ar"), diagnostics toggle. Every value validated /
+  clamped; non-finite values rejected; unsupported language
+  rejected. Graphics + camera + language are applied in code;
+  volumes are stored only (live mix needs a SoundMix asset —
+  see `Docs/SETTINGS.md`).
+- `Source/GalaxyFrontier/Performance/UGFPerformanceManager.h/.cpp` —
+  GameInstance subsystem: 0.5 s sampling of FPS (EMA) / RAM,
+  budgets High 150 draw calls / 500k polys / 512 MB / 2 lights,
+  Medium 120 / 350k / 384 MB / 1, Low 80 / 200k / 256 MB / 1,
+  hysteresis auto-quality (step down after 5 s below target−5,
+  step up after 10 s above target+10, 10 s cooldown, dead band,
+  never above the user's chosen quality), `OnQualityChanged` /
+  `OnMetricsUpdated` delegates. Thermal state is `Unknown` in
+  this build (iOS reader NOT IMPLEMENTED); draw calls / polygons
+  are Editor measurements (`stat RHI`), not live values.
+- `Source/GalaxyFrontier/Tests/GFPhase04Test.cpp` — Automation
+  test skeleton, spec values + 15 failure cases listed. Status:
+  NOT RUN.
+- `Docs/MOBILE-HUD.md` (full Phase 04 spec: anchors, Safe Areas,
+  joystick, camera drag, multi-touch, button table),
+  `Docs/UI-SCREENS.md` (MainMenu, Pause, Settings, Inventory
+  [Phase 05], WeaponSelection, MissionPanel,
+  CharacterCustomization [brief, Phase 05], LoadingScreen,
+  GameOver, MissionComplete), `Docs/SETTINGS.md`,
+  `Docs/PERFORMANCE.md` (budgets, LOD0–3, ASTC, HISM, lighting
+  budget, measurement protocol), `Docs/DEVICE_TEST_MATRIX.md`
+  (Phase 04 measurement protocol, thermal recording),
+  `Docs/RELIABILITY.md` (Phase 04 failure tables).
+- `GalaxyFrontier.Build.cs` — added `UMG` + `Slate` +
+  `SlateCore` (Public, actually used by the HUD widget /
+  controller).
+- `Config/DefaultScalability.ini` — streaming pool per tier
+  (High 512 MB, Medium/Low 256 MB); `Config/DefaultDeviceProfiles.ini` —
+  Phase 04 note (auto step-down may move the live tier below the
+  starting profile).
+
+### Changed
+- `AGFCharacter::HandlePause` is now a real implementation
+  (delegates to `UGFHUDController::TogglePause()`). The Phase 01
+  stub is replaced. Character gained `HUDController`,
+  `bInvertLookPitch`, and public `SetAiming()` / `SetSprinting()`
+  (used by the HUD touch buttons; they update movement speed,
+  so aim-walk stays WalkSpeed 300).
+- `AGFCharacter::HandleLook` now honours `bInvertLookPitch`.
+
+### Not implemented (declared / specced only)
+- All UMG widgets as `.uasset` files — specs in `Docs/` only;
+  built in the Editor on macOS.
+- `WBP_Inventory` (Phase 05 backend) — `HandleOpenInventory`
+  stays a stub that logs NOT IMPLEMENTED.
+- Full character customisation (Phase 05) — only the 3 colour
+  pickers on the Phase 02 hooks are specced.
+- Live audio volumes (SoundMix asset), full localisation data,
+  iOS thermal reader — see `Docs/SETTINGS.md` /
+  `Docs/PERFORMANCE.md`.
+
+### Blocked
+- UE build, IPA build, signing, device testing — no UE / Xcode /
+  macOS on this Linux VM (see Docs/ENVIRONMENT.md). FPS / RAM /
+  thermal columns in `Docs/DEVICE_TEST_MATRIX.md` are empty
+  until a real iPhone/iPad run.
+
 ## [Unreleased — SideStore IPA build path] — 2026-11-18
 
 ### Added

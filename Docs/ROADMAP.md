@@ -73,13 +73,31 @@ network base is built and tested (Phase 06).
 - Exit criteria NOT yet proven: one mission completable start to
   finish needs an Editor run on macOS (BUILT: NONE, TESTED: NONE).
 
-## Phase 04 — Mobile UI & Optimization
+## Phase 04 — Mobile UI & Optimization ✅ CREATED / REVIEWED (2026-11-18)
 
-- UMG: MainMenu, MobileHUD, Pause, Settings, Inventory, WeaponSelection,
-  MissionPanel, CharacterCustomization, LoadingScreen, GameOver,
-  MissionComplete. Touch settings, graphics settings, performance pass
-  (LODs, texture compression, instancing, light/shadow budget).
-- Exit criteria: tested on real iPhone + iPad, FPS/RAM/thermal recorded.
+- UMG specs: `WBP_MainMenu`, `WBP_MobileHUD` (full spec, C++ base
+  `UGFMobileHUDWidget`), `WBP_PauseMenu`, `WBP_Settings`,
+  `WBP_WeaponSelection`, `WBP_MissionPanel`, `WBP_LoadingScreen`,
+  `WBP_GameOver`, `WBP_MissionComplete` (all in
+  `Docs/MOBILE-HUD.md` + `Docs/UI-SCREENS.md` — specs only, the
+  `.uasset` widgets are built in the Editor on macOS).
+  `WBP_Inventory` is spec-only for Phase 05; `WBP_CharacterCustomization`
+  is a brief spec (3 colour pickers on the Phase 02 hooks).
+- C++ (real, no new stubs): `UGFHUDController` (event-driven HUD
+  bridge, pause / Game Over / Mission Complete widgets),
+  `UGFSettingsSaveGame` + `UGFSettingsManager` (slot
+  `GF_SettingsSave`, validated ranges, 20 languages, default "ar"),
+  `UGFPerformanceManager` (0.5 s sampling, hysteresis auto-quality,
+  budgets High 150/500k/512 MB, Medium 120/350k/384 MB, Low 80/200k/
+  256 MB, dynamic lights ≤ 2). `AGFCharacter::HandlePause` is real
+  now; `HandleOpenInventory` stays a Phase 05 stub.
+- Performance pass: LODs 0–3, ASTC textures, HISM instancing,
+  lighting/shadow budget, per-device Scalability (see
+  `Docs/PERFORMANCE.md` + updated `Docs/DEVICE_TEST_MATRIX.md`).
+- Output: `GalaxyFrontier-Phase-04-Mobile-UI-Optimization.zip`
+- Exit criteria NOT yet proven: UMG widgets unbuilt in the Editor,
+  no real iPhone/iPad run — FPS/RAM/thermal columns are empty
+  (BUILT: NONE, TESTED: NONE — BLOCKED).
 
 ## Phase 05 — Expansion
 

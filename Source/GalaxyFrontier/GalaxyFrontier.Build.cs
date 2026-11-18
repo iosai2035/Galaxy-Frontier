@@ -1,13 +1,14 @@
-// Galaxy Frontier — GalaxyFrontier.Build.cs (Phases 00-03)
+// Galaxy Frontier — GalaxyFrontier.Build.cs (Phases 00-04)
 //
-// Only modules actually used by the C++ in Phases 00-03 are listed.
+// Only modules actually used by the C++ in Phases 00-04 are listed.
 // - AIModule: AGFEnemyAIController (AAIController, UAIPerceptionComponent,
 //   UAISenseConfig_Sight, UBehaviorTree / UBlackboardComponent).
 // - NavigationSystem: AGFEnemyAIController (UNavigationSystemV1,
 //   GetRandomReachablePointInRadius, FNavLocation).
-// UMG, Slate and GameplayTasks are NOT listed yet: no C++ in these
-// phases includes them. Add a module only when a #include from it
-// lands in the code, and record the change in CHANGELOG.md.
+// - UMG / Slate / SlateCore: Phase 04 — UGFMobileHUDWidget
+//   (UUserWidget) and UGFHUDController (CreateWidget, AddToViewport).
+// Add a module only when a #include from it lands in the code, and
+// record the change in CHANGELOG.md.
 
 using UnrealBuildTool;
 
@@ -23,7 +24,10 @@ public class GalaxyFrontier : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"EnhancedInput"
+			"EnhancedInput",
+			"UMG",
+			"Slate",
+			"SlateCore"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
@@ -32,6 +36,6 @@ public class GalaxyFrontier : ModuleRules
 			"NavigationSystem"
 		});
 
-		// No third-party libraries in Phases 00-03.
+		// No third-party libraries in Phases 00-04.
 	}
 }
